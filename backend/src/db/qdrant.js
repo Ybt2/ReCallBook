@@ -13,12 +13,29 @@ async function initQdrant() {
   const exists = collections.collections.some(c => c.name === COLLECTION_NAME);
 
   if (!exists) {
-    // Para o BGE-M3, o tamanho do vetor costuma ser 1024. 
-    // Nota: O LangChain pode criar automaticamente, mas é mais seguro definir aqui.
     await client.createCollection(COLLECTION_NAME, {
-      vectors: { size: 1024, distance: "Cosine" }
+      // Vetores Densos (O que você já tem - 1024)
+      vectors: { 
+        size: 1024, 
+        distance: "Cosine" 
+      },
+      // ADICIONE ISTO PARA O BM25/Híbrido:
+      sparse_vectors: {
+        "text-sparse": {
+          index: {
+            full_scan_threshold: 1000
+          }
+        }
+      }
     });
-    console.log(`✅ Qdrant: Coleção ${COLLECTION_NAME} criada.`);
+    
+    // Criar um índice de texto no payload para buscas exatas rápidas
+    await client.createPayloadIndex(COLLECTION_NAME, {
+      field_name: "pageContent",
+      field_schema: "text",
+    });
+
+    console.log(`✅ Qdrant: Coleção Híbrida ${COLLECTION_NAME} criada.`);
   }
 }
 

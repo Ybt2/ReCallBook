@@ -1,6 +1,8 @@
 Upload de pdf
 
-curl -X POST http://localhost:3000/api/documents/upload -F "file=@D:\programming_projects\sites\PAP\ReCallBook\backend\uploads\book.pdf"
+curl -X POST http://localhost:3000/api/documents/upload ^
+-F "notebookId=1" ^
+-F "file=@D:/programming_projects/sites/PAP/ReCallBook/backend/uploads/mario.pdf"
 
 Criação de quiz
 

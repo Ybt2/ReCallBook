@@ -12,30 +12,38 @@ const upload = multer({ dest: "uploads/" });
 router.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const { notebookId } = req.body;
+    
+    // Verificação de segurança: se o notebookId não vier, o MySQL vai dar erro
+    if (!notebookId) {
+      return res.status(400).json({ error: "notebookId é obrigatório." });
+    }
+
     const { path: filePath, originalname } = req.file;
     const docId = uuidv4();
 
-    const { chunks } = await parsePDF(filePath);
+    // 1. Chamar o parser com os IDs necessários para os metadados
+    // Agora o 'chunks' já vem como um array de instâncias 'Document' (do LangChain)
+    const { chunks } = await parsePDF(filePath, notebookId, docId, originalname);
 
-    // 1. MySQL: Metadados
+    // 2. MySQL: Guardar o registo da fonte
     await pool.query(
       "INSERT INTO Fontes (ID, notebooks_ID, titulo, tipo, estado) VALUES (?, ?, ?, ?, ?)",
       [docId, notebookId, originalname, 'pdf', 'carregado']
     );
 
-    // 2. Qdrant: Vetores via VectorStore abstrato
+    // 3. Qdrant: Enviar os documentos diretamente
     const vectorStore = await getVectorStore();
-    const documents = chunks.map(text => ({
-      pageContent: text,
-      metadata: { docId, notebookId }
-    }));
-
-    await vectorStore.addDocuments(documents);
+    
+    // REMOVIDO: O map manual que tinhas aqui. 
+    // O 'chunks' já está no formato correto vindo do parsePDF.
+    await vectorStore.addDocuments(chunks);
 
     await cleanTempFile(filePath);
     res.json({ id: docId, name: originalname });
   } catch (err) {
     console.error("Erro no upload:", err);
+    // Limpar o ficheiro mesmo se der erro para não entupir o disco
+    if (req.file) await cleanTempFile(req.file.path);
     res.status(500).json({ error: err.message });
   }
 });
