@@ -14,9 +14,14 @@ const QuizSchema = z.object({
 
 const structuredLlm = llm.withStructuredOutput(QuizSchema);
 
-async function generateQuizAction(context, numQuestions) {
+async function generateQuizAction(context, numQuestions = 5, difficulty = "medium", userPrompt = "") {
+  const focus = userPrompt?.trim()
+    ? `Focus especially on: ${userPrompt.trim()}.`
+    : "Cover the most important ideas of the content.";
+
   const prompt = `
-Based on the following content, generate ${numQuestions} multiple choice questions.
+Based on the following content, generate ${numQuestions} multiple choice questions with difficulty "${difficulty}".
+${focus}
 You MUST respond ONLY with a valid JSON object. No markdown, no extra text, no code blocks.
 Every question MUST have all these fields: question, options (array of 4 strings), correct (number 0-3), explanation (string).
 
@@ -27,8 +32,7 @@ Content:
 ${context}
 `;
 
-  const result = await structuredLlm.invoke(prompt);
-  return result;
+  return await structuredLlm.invoke(prompt);
 }
 
 module.exports = { generateQuizAction };

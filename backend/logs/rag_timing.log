@@ -129,3 +129,4 @@
 2026-04-16T11:52:49.818Z - Rerank: 6102 ms
 2026-04-16T11:53:43.812Z - Answer generation: 53994 ms
 2026-04-16T11:53:44.546Z - Source extraction: 0 ms
+2026-04-17T08:16:32.856Z - Vector store ready: 0 ms

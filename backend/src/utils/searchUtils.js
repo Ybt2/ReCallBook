@@ -11,17 +11,16 @@ function deduplicateSearchResults(rawResults) {
   return [...map.values()].sort((a, b) => b.score - a.score).map(item => item.doc);
 }
 
-async function searchDocuments(vectorStore, queries, notebookId) {
+async function searchDocuments(vectorStore, queries, notebookId, docIds = null) {
+  const must = [{ key: "metadata.notebookId", match: { value: String(notebookId) } }];
+  const filter = Array.isArray(docIds) && docIds.length > 0
+    ? { must, should: docIds.map(id => ({ key: "metadata.docId", match: { value: String(id) } })) }
+    : { must };
+
   const rawResults = await Promise.all(
-    queries.map(q => 
-      vectorStore.similaritySearchWithScore(q, TOP_K, {
-        must: [{ key: "metadata.notebookId", match: { value: String(notebookId) } }]
-      })
-    )
+    queries.map(q => vectorStore.similaritySearchWithScore(q, TOP_K, filter))
   );
   return deduplicateSearchResults(rawResults);
 }
 
-module.exports = {
-  searchDocuments,
-};
+module.exports = { searchDocuments };

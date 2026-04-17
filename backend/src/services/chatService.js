@@ -17,65 +17,35 @@ const { getEncoding } = require("js-tiktoken");
 
 const enc = getEncoding("cl100k_base");
 
-async function chatWithAi(notebookId, userMessage, history) {
+async function chatWithAi(notebookId, userMessage, history, docIds = null) {
   try {
     const startVector = Date.now();
-const vectorStore = await getVectorStore();
-log(`Vector store ready: ${Date.now() - startVector} ms`);
+    const vectorStore = await getVectorStore();
+    log(`Vector store ready: ${Date.now() - startVector} ms`);
 
-    const startLang = Date.now();
-const detectedLang = await detectLanguage(userMessage);
-log(`Language detection: ${Date.now() - startLang} ms`);
-    console.log(`Idioma detetado: ${detectedLang}`);
-
-    const startQueries = Date.now();
-const queries = await buildQueries(userMessage, detectedLang, vectorStore, notebookId);
-log(`Query generation: ${Date.now() - startQueries} ms`);
-    console.log(`Queries para busca: ${queries.join(" | ")}`);
-
-    const startSearch = Date.now();
-const vectorDocs = await searchDocuments(vectorStore, queries, notebookId);
-log(`Vector search: ${Date.now() - startSearch} ms`);
-    console.log(`Vetores únicos encontrados: ${vectorDocs.length}`);
-
-    const startRerank = Date.now();
-const finalDocs = await crossEncoder.rerank(
-  queries.join(" "),
-   vectorDocs.slice(0, 20)
-);
-log(`Rerank: ${Date.now() - startRerank} ms`);
-    console.log(`Selecionados top ${finalDocs.length} para o contexto final.`);
+    const detectedLang = await detectLanguage(userMessage);
+    const queries = await buildQueries(userMessage, detectedLang, vectorStore, notebookId);
+    const vectorDocs = await searchDocuments(vectorStore, queries, notebookId, docIds);
+    const finalDocs = await crossEncoder.rerank(queries.join(" "), vectorDocs.slice(0, 20));
 
     if (finalDocs.length === 0) {
-      console.warn("Nenhum documento relevante após filtros.");
       if (vectorDocs.length > 0) finalDocs.push(...vectorDocs.slice(0, 3));
       else return { texto_final: "No relevant information found.", fontes: [], usage: { totalTokens: 0 } };
     }
 
-const startAnswer = Date.now();
-const context = buildContext(finalDocs);
-const answer = await generateAnswer(userMessage, context, history, detectedLang);
-log(`Answer generation: ${Date.now() - startAnswer} ms`);
-    console.log("Resposta gerada pelo LLM.");
-
-    const startSources = Date.now();
-const fontes = extractSources(answer, finalDocs);
-log(`Source extraction: ${Date.now() - startSources} ms`);
-    console.log(`Fontes citadas: ${fontes.length}`);
+    const context = buildContext(finalDocs);
+    const answer = await generateAnswer(userMessage, context, history, detectedLang);
+    const fontes = extractSources(answer, finalDocs);
 
     return {
       texto_final: answer,
       fontes,
-      usage: { totalTokens: enc.encode(context + answer).length }
+      usage: { totalTokens: enc.encode(context + answer).length },
     };
   } catch (error) {
     console.error("Pipeline Error:", error);
     return { texto_final: "An error occurred.", fontes: [], usage: { totalTokens: 0 } };
   }
 }
-
-module.exports = {
-  chatWithAi,
-};
 
 module.exports = { chatWithAi };
