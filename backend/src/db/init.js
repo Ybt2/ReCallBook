@@ -19,13 +19,11 @@ const pool = mysql.createPool({
 
 async function initDB() {
     try {
-        // 1. Conexão temporária para garantir que a DB existe
         const connection = await mysql.createConnection(dbConfig);
         await connection.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;`);
         await connection.query(`USE \`${DB_NAME}\`;`);
         console.log(`✅ MySQL: Database '${DB_NAME}' garantida.`);
 
-        // 2. Criar Tabelas
         const queries = [
             `CREATE TABLE IF NOT EXISTS Utilizadores (
                 ID INT AUTO_INCREMENT PRIMARY KEY,
@@ -93,13 +91,12 @@ async function initDB() {
             await connection.query(query);
         }
 
-        console.log("✅ MySQL: Tabelas verificadas/criadas.");
+        console.log("MySQL: Tabelas verificadas/criadas.");
         await connection.end();
     } catch (error) {
-        console.error("❌ Erro ao inicializar MySQL:", error);
+        console.error("Erro ao inicializar MySQL:", error);
         process.exit(1);
     }
 }
 
-// Exportação correta para CommonJS (o que o teu app.js espera)
 module.exports = { pool, initDB };

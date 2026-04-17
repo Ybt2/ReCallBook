@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-const { pool } = require("../db/init"); // Teu pool de MySQL
+const { pool } = require("../db/init");
 const { chatWithAi } = require("../services/chatService");
 
 router.post("/pergunta", async (req, res) => {
@@ -8,7 +8,6 @@ router.post("/pergunta", async (req, res) => {
   const { notebookId, mensagem } = req.body;
 
   try {
-    // 1. Buscar histórico recente (últimas 6 mensagens)
     const [rows] = await pool.query(
       "SELECT role, conteudo FROM Mensagens WHERE notebooks_ID = ? ORDER BY created_at DESC LIMIT 6",
       [notebookId]
@@ -19,20 +18,16 @@ router.post("/pergunta", async (req, res) => {
       .map(m => `${m.role === 'utilizador' ? 'User' : 'Assistant'}: ${m.conteudo}`)
       .join("\n");
 
-    // 2. Chamar IA
     const aiResponse = await chatWithAi(notebookId, mensagem, history);
     const tempoProc = ((Date.now() - startTime) / 1000).toFixed(2);
 
-    // Extraímos os tokens que calculámos no serviço
     const totalTokens = aiResponse.usage.totalTokens;
 
-    // 3. Guardar Mensagem do Utilizador
     await pool.query(
       "INSERT INTO Mensagens (notebooks_ID, role, conteudo) VALUES (?, 'utilizador', ?)",
       [notebookId, mensagem]
     );
 
-    // 4. Guardar Resposta da IA (Conteúdo Estruturado)
     const [result] = await pool.query(
       `INSERT INTO Mensagens 
       (notebooks_ID, role, conteudo, modelo_ai, LOGS, tempo_processamento, num_tokens) 
@@ -46,7 +41,7 @@ router.post("/pergunta", async (req, res) => {
         "llama3.2:3b",
         "SUCCESS",
         tempoProc,
-        totalTokens // <--- Agora preenchemos a coluna!
+        totalTokens
       ]
     );
 

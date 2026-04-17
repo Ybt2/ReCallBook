@@ -5,21 +5,16 @@ const embeddings = require("../services/embeddings");
 const client = new QdrantClient({ url: process.env.QDRANT_URL || "http://localhost:6333" });
 const COLLECTION_NAME = "recallbook_chunks";
 
-/**
- * Garante que a coleção existe no Qdrant com a configuração correta
- */
 async function initQdrant() {
   const collections = await client.getCollections();
   const exists = collections.collections.some(c => c.name === COLLECTION_NAME);
 
   if (!exists) {
     await client.createCollection(COLLECTION_NAME, {
-      // Vetores Densos (O que você já tem - 1024)
       vectors: { 
         size: 1024, 
         distance: "Cosine" 
       },
-      // ADICIONE ISTO PARA O BM25/Híbrido:
       sparse_vectors: {
         "text-sparse": {
           index: {
@@ -29,19 +24,15 @@ async function initQdrant() {
       }
     });
     
-    // Criar um índice de texto no payload para buscas exatas rápidas
     await client.createPayloadIndex(COLLECTION_NAME, {
       field_name: "pageContent",
       field_schema: "text",
     });
 
-    console.log(`✅ Qdrant: Coleção Híbrida ${COLLECTION_NAME} criada.`);
+    console.log(`Qdrant: Coleção ${COLLECTION_NAME} criada.`);
   }
 }
 
-/**
- * Retorna uma instância do VectorStore do LangChain para operações
- */
 async function getVectorStore() {
   return new QdrantVectorStore(embeddings, {
     client,

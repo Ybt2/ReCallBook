@@ -1,7 +1,6 @@
 const { z } = require("zod");
-const llm = require("../agent");
+const { llm } = require("../agent");
 
-// 1. Definir o esquema
 const QuizSchema = z.object({
   questions: z.array(
     z.object({
@@ -13,7 +12,6 @@ const QuizSchema = z.object({
   ),
 });
 
-// 2. Criar o extrator estruturado
 const structuredLlm = llm.withStructuredOutput(QuizSchema);
 
 async function generateQuizAction(context, numQuestions) {
@@ -29,7 +27,6 @@ Content:
 ${context}
 `;
 
-  // Isto força o Llama a devolver o JSON que o Zod espera
   const result = await structuredLlm.invoke(prompt);
   return result;
 }

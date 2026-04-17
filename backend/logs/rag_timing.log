@@ -1,0 +1,131 @@
+2026-04-16T08:11:11.609Z - Vector store ready: 0 ms
+2026-04-16T08:11:14.889Z - Language detection: 3278 ms
+2026-04-16T08:11:24.420Z - Query generation: 9529 ms
+2026-04-16T08:11:29.199Z - Vector search: 4779 ms
+2026-04-16T08:11:34.663Z - Rerank: 5463 ms
+2026-04-16T08:13:46.917Z - Answer generation: 132253 ms
+2026-04-16T08:13:46.918Z - Source extraction: 0 ms
+
+2026-04-16T08:25:17.794Z - Vector store ready: 0 ms
+2026-04-16T08:25:17.796Z - Language detection: 1 ms
+2026-04-16T08:25:43.724Z - Query generation: 25928 ms
+2026-04-16T08:25:48.340Z - Vector search: 4616 ms
+2026-04-16T08:25:53.934Z - Rerank: 5593 ms
+2026-04-16T08:28:08.831Z - Answer generation: 134896 ms
+2026-04-16T08:28:08.831Z - Source extraction: 0 ms
+
+2026-04-16T08:36:50.080Z - Vector store ready: 0 ms
+2026-04-16T08:36:50.082Z - Language detection: 1 ms
+2026-04-16T08:36:58.649Z - Query generation: 8566 ms
+2026-04-16T08:37:03.064Z - Vector search: 4415 ms
+2026-04-16T08:37:09.484Z - Rerank: 6420 ms
+2026-04-16T08:37:13.421Z - Answer generation: 3937 ms
+2026-04-16T08:37:13.421Z - Source extraction: 0 ms
+
+2026-04-16T08:57:47.954Z - Vector store ready: 0 ms
+2026-04-16T08:57:47.956Z - Language detection: 1 ms
+2026-04-16T08:57:59.255Z - Query generation: 11299 ms
+2026-04-16T08:57:59.951Z - Vector search: 668 ms
+2026-04-16T08:58:05.443Z - Rerank: 5492 ms
+2026-04-16T08:58:07.556Z - Answer generation: 2113 ms
+2026-04-16T08:58:07.557Z - Source extraction: 1 ms
+
+2026-04-16T09:13:50.740Z - Vector store ready: 0 ms
+2026-04-16T09:13:50.742Z - Language detection: 1 ms
+2026-04-16T09:13:59.024Z - Query generation: 8282 ms
+2026-04-16T09:14:03.664Z - Vector search: 4597 ms
+2026-04-16T09:14:11.058Z - Rerank: 7393 ms
+2026-04-16T09:14:15.119Z - Answer generation: 4060 ms
+2026-04-16T09:14:15.120Z - Source extraction: 0 ms
+
+2026-04-16T09:18:01.714Z - Vector store ready: 0 ms
+2026-04-16T09:18:01.716Z - Language detection: 1 ms
+2026-04-16T09:18:25.610Z - Query generation: 23893 ms
+2026-04-16T09:18:32.620Z - Vector search: 6383 ms
+2026-04-16T09:18:40.059Z - Rerank: 7439 ms
+2026-04-16T09:20:51.619Z - Answer generation: 131559 ms
+2026-04-16T09:20:51.652Z - Source extraction: 0 ms
+
+2026-04-16T09:33:06.371Z - Vector store ready: 1 ms
+2026-04-16T09:33:06.373Z - Language detection: 2 ms
+2026-04-16T09:33:14.770Z - Query generation: 8397 ms
+2026-04-16T09:33:19.199Z - Vector search: 4428 ms
+2026-04-16T09:33:25.230Z - Rerank: 6030 ms
+2026-04-16T09:33:27.913Z - Answer generation: 2683 ms
+2026-04-16T09:33:27.914Z - Source extraction: 1 ms
+
+2026-04-16T09:36:29.359Z - Vector store ready: 0 ms
+2026-04-16T09:36:29.361Z - Language detection: 1 ms
+2026-04-16T09:36:30.431Z - Query generation: 1070 ms
+2026-04-16T09:36:31.019Z - Vector search: 587 ms
+2026-04-16T09:36:36.352Z - Rerank: 5333 ms
+2026-04-16T09:36:39.380Z - Answer generation: 3027 ms
+2026-04-16T09:36:39.380Z - Source extraction: 0 ms
+
+2026-04-16T09:54:46.123Z - Vector store ready: 0 ms
+2026-04-16T09:54:46.125Z - Language detection: 1 ms
+2026-04-16T09:54:56.669Z - Query generation: 10544 ms
+2026-04-16T09:54:57.250Z - Vector search: 551 ms
+2026-04-16T09:55:03.391Z - Rerank: 6140 ms
+2026-04-16T09:55:06.098Z - Answer generation: 2706 ms
+2026-04-16T09:55:06.099Z - Source extraction: 0 ms
+
+2026-04-16T10:01:53.745Z - Vector store ready: 1 ms
+2026-04-16T10:01:53.746Z - Language detection: 1 ms
+2026-04-16T10:02:05.257Z - Query generation: 11510 ms
+2026-04-16T10:02:05.938Z - Vector search: 615 ms
+2026-04-16T10:02:12.237Z - Rerank: 6299 ms
+2026-04-16T10:02:14.518Z - Answer generation: 2280 ms
+2026-04-16T10:02:14.519Z - Source extraction: 1 ms
+
+2026-04-16T10:07:01.454Z - Vector store ready: 0 ms
+2026-04-16T10:07:01.500Z - Language detection: 1 ms
+2026-04-16T10:07:35.272Z - Query generation: 33771 ms
+2026-04-16T10:07:39.595Z - Vector search: 4299 ms
+2026-04-16T10:07:46.065Z - Rerank: 6470 ms
+2026-04-16T10:08:46.363Z - Answer generation: 60297 ms
+2026-04-16T10:08:46.393Z - Source extraction: 1 ms
+
+2026-04-16T10:37:49.068Z - Vector store ready: 0 ms
+2026-04-16T10:37:49.070Z - Language detection: 1 ms
+2026-04-16T10:38:26.340Z - Query generation: 37270 ms
+2026-04-16T10:38:30.676Z - Vector search: 4300 ms
+2026-04-16T10:38:37.030Z - Rerank: 6353 ms
+2026-04-16T10:39:16.240Z - Answer generation: 39210 ms
+2026-04-16T10:39:16.263Z - Source extraction: 1 ms
+
+2026-04-16T10:52:01.451Z - Vector store ready: 0 ms
+2026-04-16T10:52:01.480Z - Language detection: 1 ms
+2026-04-16T10:52:14.044Z - Query generation: 12564 ms
+2026-04-16T10:52:16.248Z - Vector search: 2181 ms
+2026-04-16T10:52:22.990Z - Rerank: 6741 ms
+2026-04-16T10:53:03.004Z - Answer generation: 40013 ms
+2026-04-16T10:53:03.094Z - Source extraction: 1 ms
+
+2026-04-16T11:12:52.277Z - Vector store ready: 0 ms
+2026-04-16T11:12:52.378Z - Language detection: 2 ms
+2026-04-16T11:13:07.680Z - Query generation: 15301 ms
+2026-04-16T11:13:09.167Z - Vector search: 1455 ms
+2026-04-16T11:13:16.758Z - Rerank: 7590 ms
+2026-04-16T11:13:50.289Z - Answer generation: 33530 ms
+2026-04-16T11:13:50.327Z - Source extraction: 0 ms
+
+2026-04-16T11:45:17.532Z - Vector store ready: 1 ms
+2026-04-16T11:45:17.534Z - Language detection: 2 ms
+2026-04-16T11:46:02.213Z - Vector store ready: 0 ms
+2026-04-16T11:46:02.215Z - Language detection: 1 ms
+2026-04-16T11:46:09.341Z - Query generation: 7126 ms
+2026-04-16T11:46:11.924Z - Vector search: 2583 ms
+2026-04-16T11:46:15.219Z - Rerank: 3294 ms
+2026-04-16T11:49:45.388Z - Vector store ready: 0 ms
+2026-04-16T11:49:45.417Z - Language detection: 2 ms
+2026-04-16T11:49:54.382Z - Query generation: 8965 ms
+2026-04-16T11:49:56.803Z - Vector search: 2420 ms
+2026-04-16T11:50:02.669Z - Rerank: 5865 ms
+2026-04-16T11:52:31.950Z - Vector store ready: 0 ms
+2026-04-16T11:52:31.976Z - Language detection: 2 ms
+2026-04-16T11:52:41.153Z - Query generation: 9177 ms
+2026-04-16T11:52:43.716Z - Vector search: 2561 ms
+2026-04-16T11:52:49.818Z - Rerank: 6102 ms
+2026-04-16T11:53:43.812Z - Answer generation: 53994 ms
+2026-04-16T11:53:44.546Z - Source extraction: 0 ms

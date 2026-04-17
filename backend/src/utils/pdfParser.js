@@ -4,19 +4,17 @@ const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
 const path = require("path");
 const fs = require("fs");
 
-// Optimized splitter for better context preservation
-// Larger chunks for better semantic coherence, good overlap for context continuity
 const splitter = new RecursiveCharacterTextSplitter({
-  chunkSize: 1200,      // Slightly larger chunks (was 1000)
-  chunkOverlap: 300,    // Increased overlap (was 200) for better context
+  chunkSize: 1200,      
+  chunkOverlap: 300,    
   separators: [
-    "\n\n",             // Paragraph breaks (highest priority)
-    "\n",               // Line breaks
-    ". ",               // Sentence breaks
+    "\n\n",             
+    "\n",               
+    ". ",               
     "! ",
     "? ",
-    " ",                // Words
-    ""                  // Characters (last resort)
+    " ",                
+    ""                  
   ],
 });
 
@@ -24,16 +22,15 @@ async function parsePDF(filePath, notebookId, docId, originalname) {
   const loader = new PDFLoader(filePath, { parsedItemSeparator: "" });
   const docs = await loader.load();
   
-  console.log(`📄 PDF loaded: ${originalname} | Pages: ${docs.length}`);
+  console.log(`PDF loaded: ${originalname} | Pages: ${docs.length}`);
   
   const splittedDocs = await splitter.splitDocuments(docs);
   
-  console.log(`✂️ Split into ${splittedDocs.length} chunks`);
+  console.log(`Split into ${splittedDocs.length} chunks`);
 
-  // IMPORTANTE: Criar instâncias da classe Document com melhor metadata
   const processedChunks = splittedDocs.map((chunk, idx) => {
     return new Document({
-      pageContent: chunk.pageContent.trim(), // Remove excess whitespace
+      pageContent: chunk.pageContent.trim(), 
       metadata: {
         notebookId: String(notebookId),
         docId: docId,
@@ -42,7 +39,7 @@ async function parsePDF(filePath, notebookId, docId, originalname) {
         source_ref: chunk.metadata.loc?.pageNumber 
           ? `Pág. ${chunk.metadata.loc.pageNumber}` 
           : "S/N",
-        chunk_index: idx, // Track chunk order for reference
+        chunk_index: idx, 
       },
     });
   });
