@@ -1,6 +1,12 @@
 const express = require("express");
 const router = express.Router();
+const fs = require("fs");
+const path = require("path");
 const { pool } = require("../db/init");
+const { client: qdrantClient, COLLECTION_NAME } = require("../db/qdrant");
+const { appendLog, consoleLog } = require("../utils/logger");
+
+const UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads");
 
 // GET /api/notebooks?userId=
 router.get("/", async (req, res) => {
@@ -51,9 +57,14 @@ router.post("/", async (req, res) => {
       [titulo, userId]
     );
 
+    const notebookId = result.insertId;
+    await appendLog("NoteBooks", "ID", notebookId, "created", { titulo, userId });
+    await appendLog("Utilizadores", "ID", userId, "notebook_created", { notebookId, titulo });
+    consoleLog("notebooks", "created", { notebookId, titulo });
+
     res.status(201).json({
       message: "Notebook criado!",
-      notebook: { id: result.insertId, titulo, userId },
+      notebook: { id: notebookId, titulo, userId },
     });
   } catch (err) {
     console.error(err);
@@ -62,10 +73,48 @@ router.post("/", async (req, res) => {
 });
 
 // DELETE /api/notebooks/:id
+// Cascades via FK, but we also purge Qdrant vectors and stored PDF files.
 router.delete("/:id", async (req, res) => {
+  const notebookId = req.params.id;
   try {
-    await pool.query("DELETE FROM NoteBooks WHERE ID = ?", [req.params.id]);
-    res.json({ message: "Notebook eliminado." });
+    // Collect fontes to clean up files & vectors
+    const [fontes] = await pool.query(
+      "SELECT ID FROM Fontes WHERE notebooks_ID = ?",
+      [notebookId]
+    );
+
+    // Delete from Qdrant (all chunks belonging to this notebook)
+    try {
+      await qdrantClient.delete(COLLECTION_NAME, {
+        filter: {
+          must: [{ key: "metadata.notebookId", match: { value: String(notebookId) } }],
+        },
+      });
+    } catch (e) {
+      console.warn("Qdrant purge warning:", e.message);
+    }
+
+    // Delete PDF files from disk
+    for (const f of fontes) {
+      const filePath = path.join(UPLOAD_DIR, `${f.ID}.pdf`);
+      if (fs.existsSync(filePath)) {
+        try { fs.unlinkSync(filePath); } catch (_) {}
+      }
+    }
+
+    // ON DELETE CASCADE will remove Fontes / Mensagens / Notebook_assets
+    const [r] = await pool.query("DELETE FROM NoteBooks WHERE ID = ?", [notebookId]);
+
+    consoleLog("notebooks", "deleted", {
+      notebookId,
+      affected: r.affectedRows,
+      fontesRemoved: fontes.length,
+    });
+
+    res.json({
+      message: "Notebook eliminado.",
+      fontesRemoved: fontes.length,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: err.message });

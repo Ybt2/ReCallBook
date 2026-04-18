@@ -6,6 +6,12 @@ function buildContext(docs) {
     .join("\n\n");
 }
 
+function parsePageNumber(ref) {
+  if (!ref) return null;
+  const m = String(ref).match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
 function extractSources(answer, docs) {
   const citationMatches = [...answer.matchAll(/\[(\d+)\]/g)];
 
@@ -17,11 +23,16 @@ function extractSources(answer, docs) {
 
   return indices.map(i => {
     const doc = docs[i - 1];
+    const ref = doc.metadata.source_ref || "N/A";
     return {
       index: i,
       source: doc.metadata.source_name || "Document",
-      reference: doc.metadata.source_ref || "N/A",
-      text: doc.pageContent.slice(0, 250).trim() + "..."
+      source_name: doc.metadata.source_name || "Document",
+      reference: ref,
+      source_ref: ref,
+      docId: doc.metadata.docId || null,
+      page: parsePageNumber(ref),
+      text: doc.pageContent.slice(0, 600).trim(),
     };
   });
 }

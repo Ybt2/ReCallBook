@@ -3,7 +3,7 @@ import { computed } from "vue";
 import { DocumentsAPI } from "../../api/documents";
 
 const props = defineProps({ doc: Object });
-const src = computed(() => DocumentsAPI.fileUrl(props.doc.id));
+const src = computed(() => DocumentsAPI.fileUrl(props.doc.id, props.doc.page));
 </script>
 
 <template>

@@ -11,7 +11,7 @@ export const useNotebooksStore = defineStore("notebooks", {
   actions: {
     async fetch() {
       const auth = useAuthStore();
-      if (!auth.user) return;
+      if (!auth.user) return
       this.loading = true;
       this.error = "";
       try {
@@ -32,5 +32,5 @@ export const useNotebooksStore = defineStore("notebooks", {
       await NotebooksAPI.remove(id);
       this.items = this.items.filter((n) => n.id !== id);
     },
-  },
+  }
 });

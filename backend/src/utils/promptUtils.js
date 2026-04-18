@@ -1,4 +1,5 @@
-const { llm, llmQueryBuilder } = require("../services/agent");
+const { llm: defaultLlm, llmQueryBuilder } = require("../services/agent");
+const { ChatOllama } = require("@langchain/ollama");
 const { franc } = require("franc");
 
 const langMap = {
@@ -7,46 +8,31 @@ const langMap = {
   spa: "Spanish",
   fra: "French",
   deu: "German",
-  ita: "Italian"
+  ita: "Italian",
 };
 
 async function detectLanguage(text) {
   try {
-    // franc precisa de algum tamanho mínimo
-    if (!text || text.length < 10) {
-      return "English"; // fallback
-    }
-
+    if (!text || text.length < 10) return "English";
     const langCode = franc(text);
-
-    // franc retorna 'und' se não souber
-    if (langCode === "und") {
-      return "English";
-    }
-
+    if (langCode === "und") return "English";
     return langMap[langCode] || "English";
-  } catch (error) {
+  } catch (_) {
     return "English";
   }
 }
 
 async function buildQueries(userMessage, detectedLang, vectorStore, notebookId) {
-  // 🔹 1. Buscar contexto leve (grounding)
   let roughContext = "";
   try {
     const roughDocs = await vectorStore.similaritySearchWithScore(userMessage, 4, {
-      must: [{ key: "metadata.notebookId", match: { value: String(notebookId) } }]
+      must: [{ key: "metadata.notebookId", match: { value: String(notebookId) } }],
     });
-
-    roughContext = roughDocs
-      .map(([doc]) => doc.pageContent.slice(0, 200))
-      .join("\n");
-  } catch (e) {
-    // se falhar, segue sem contexto
+    roughContext = roughDocs.map(([doc]) => doc.pageContent.slice(0, 200)).join("\n");
+  } catch (_) {
     roughContext = "";
   }
 
-  // 🔹 2. Prompt restrito (anti-alucinação)
   const prompt = `
 You generate search queries for a document database.
 
@@ -68,73 +54,90 @@ ${userMessage}
 `;
 
   let aiQueries = [];
-
-    try {
-      const res = await llmQueryBuilder.invoke(prompt);
-
-      aiQueries = res.content
-        .split("\n")
-        .map(q => q.trim())
-        .filter(Boolean)
-        // remove lixo comum
-        .filter(q => q.length > 5 && q.length < 120)
-        .filter(q => !q.toLowerCase().includes("query"))
-        .filter(q => !q.toLowerCase().includes("context"))
-        .slice(0, 3);
-
-    } catch (e) {
-      aiQueries = [];
-    }
-
-
-  // 🔹 3. Fallback inteligente
-  if (aiQueries.length === 0) {
-    return [userMessage];
+  try {
+    const res = await llmQueryBuilder.invoke(prompt);
+    aiQueries = res.content
+      .split("\n")
+      .map((q) => q.trim())
+      .filter(Boolean)
+      .filter((q) => q.length > 5 && q.length < 120)
+      .filter((q) => !q.toLowerCase().includes("query"))
+      .filter((q) => !q.toLowerCase().includes("context"))
+      .slice(0, 3);
+  } catch (_) {
+    aiQueries = [];
   }
 
-  // 🔹 4. (Opcional) filtro leve contra drift
+  if (aiQueries.length === 0) return [userMessage];
+
   if (roughContext) {
-    aiQueries = aiQueries.filter(q => {
+    aiQueries = aiQueries.filter((q) => {
       const firstWord = q.split(" ")[0].toLowerCase();
       return roughContext.toLowerCase().includes(firstWord);
     });
-
-    if (aiQueries.length === 0) {
-      return [userMessage];
-    }
+    if (aiQueries.length === 0) return [userMessage];
   }
 
-  // 🔹 5. Garantir unicidade + incluir original
   return [...new Set([userMessage, ...aiQueries])];
 }
 
-async function generateAnswer(query, context, history, detectedLang) {
-  const prompt = `You are a professional document analysis assistant. 
-  Answer the user's question using ONLY the provided CONTEXT.
-  
-  STRICT RULES:
-  1. LANGUAGE: You MUST respond in ${detectedLang}.
-  2. FORMAT: Use plain text only. DO NOT wrap the response in code blocks, JSON, or JavaScript functions.
-  3. CITATIONS: Use ONLY the format [n] (e.g., [1]) at the end of sentences, NEVER write "Documento [n]" or "[Documento n]". Use ONLY the number inside brackets.
-  4. HONESTY: If the context doesn't have the answer, state that you don't know in ${detectedLang}.
-  5. NO META-TALK: Do not mention your internal processes.
+function pickLlm(model) {
+  if (!model) return defaultLlm;
+  return new ChatOllama({
+    model,
+    baseUrl: process.env.OLLAMA_URL || "http://localhost:11434",
+    temperature: 0,
+  });
+}
 
-  CONTEXT:
-  ${context}
+function buildAnswerPrompt(query, context, history, detectedLang) {
+  return `You are a professional document analysis assistant.
+Answer the user's question using ONLY the provided CONTEXT.
 
-  HISTORY:
-  ${history}
+STRICT RULES:
+1. LANGUAGE: You MUST respond in ${detectedLang}.
+2. FORMAT: Use plain text only. DO NOT wrap the response in code blocks, JSON, or JavaScript functions.
+3. CITATIONS: Use ONLY the format [n] (e.g., [1]) at the end of sentences, NEVER write "Documento [n]" or "[Documento n]". Use ONLY the number inside brackets.
+4. HONESTY: If the context doesn't have the answer, state that you don't know in ${detectedLang}.
+5. NO META-TALK: Do not mention your internal processes.
 
-  USER QUESTION: ${query}
-  
-  FINAL ANSWER IN ${detectedLang}:`;
+CONTEXT:
+${context}
 
+HISTORY:
+${history}
+
+USER QUESTION: ${query}
+
+FINAL ANSWER IN ${detectedLang}:`;
+}
+
+async function generateAnswer(query, context, history, detectedLang, model) {
+  const llm = pickLlm(model);
+  const prompt = buildAnswerPrompt(query, context, history, detectedLang);
   const res = await llm.invoke(prompt);
   return res.content.trim().replace(/^```[a-z]*\n?|```$/gi, "");
+}
+
+async function streamAnswer(query, context, history, detectedLang, model, onToken) {
+  const llm = pickLlm(model);
+  const prompt = buildAnswerPrompt(query, context, history, detectedLang);
+
+  let full = "";
+  const stream = await llm.stream(prompt);
+  for await (const chunk of stream) {
+    const piece = chunk?.content || "";
+    if (piece) {
+      full += piece;
+      if (onToken) onToken(piece);
+    }
+  }
+  return full.trim().replace(/^```[a-z]*\n?|```$/gi, "");
 }
 
 module.exports = {
   detectLanguage,
   buildQueries,
   generateAnswer,
+  streamAnswer,
 };

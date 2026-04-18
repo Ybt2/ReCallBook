@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, watch, ref } from "vue";
+import { onMounted, watch, ref, computed } from "vue";
 import { useNotebookStore } from "../stores/notebook";
 import AppHeader from "../components/common/AppHeader.vue";
 import FilesPanel from "../components/notebook/FilesPanel.vue";
@@ -15,9 +15,12 @@ import { ToolsAPI } from "../api/tools";
 const props = defineProps({ id: [String, Number] });
 const store = useNotebookStore();
 
-const pdfDoc = ref(null);
-const assetView = ref(null); // {type, data, title}
+const pdfDoc = ref(null); // { id, name, page? }
+const assetView = ref(null);
 const loadingAsset = ref(false);
+
+// mobile tab: files | chat | tools
+const mobileTab = ref("chat");
 
 onMounted(() => store.loadAll(props.id));
 watch(() => props.id, (nv) => store.loadAll(nv));
@@ -35,6 +38,22 @@ async function openAsset(a) {
     loadingAsset.value = false;
   }
 }
+
+function openPdf(doc) {
+  pdfDoc.value = doc;
+}
+
+function openSource(src) {
+  if (!src) return;
+  const docId = src.docId || src.source;
+  if (!docId) return;
+  const doc = store.documents.find((d) => d.id === docId || d.id === Number(docId));
+  pdfDoc.value = {
+    id: docId,
+    name: doc?.name || src.source_name || "Source",
+    page: src.page || 1,
+  };
+}
 </script>
 
 <template>
@@ -50,11 +69,63 @@ async function openAsset(a) {
       <Spinner /> Loading notebook…
     </div>
 
-    <div v-else class="flex-1 grid min-h-0 grid-cols-1 lg:grid-cols-[280px_1fr_340px]">
-      <FilesPanel @open-pdf="pdfDoc = $event" />
-      <ChatPanel />
-      <ToolsPanel @open-asset="openAsset" />
-    </div>
+    <template v-else>
+      <!-- Desktop: 3-column layout -->
+      <div class="flex-1 min-h-0 hidden lg:grid grid-cols-[280px_1fr_340px]">
+        <div class="border-r border-neutral-200 min-h-0">
+          <FilesPanel @open-pdf="openPdf" />
+        </div>
+        <div class="border-r border-neutral-200 min-h-0">
+          <ChatPanel @open-source="openSource" />
+        </div>
+        <div class="border-l border-neutral-200 min-h-0">
+          <ToolsPanel @open-asset="openAsset" />
+        </div>
+      </div>
+
+      <!-- Mobile/Tablet: tabbed layout with bottom nav -->
+      <div class="flex-1 min-h-0 flex flex-col lg:hidden">
+        <div class="flex-1 min-h-0">
+          <FilesPanel v-show="mobileTab === 'files'" @open-pdf="openPdf" />
+          <ChatPanel v-show="mobileTab === 'chat'" @open-source="openSource" />
+          <ToolsPanel v-show="mobileTab === 'tools'" @open-asset="openAsset" />
+        </div>
+        <nav class="shrink-0 grid grid-cols-3 border-t border-neutral-200 bg-white safe-bottom">
+          <button
+            class="py-3 flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors"
+            :class="mobileTab === 'files' ? 'text-brand-600' : 'text-neutral-500'"
+            @click="mobileTab = 'files'"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+            </svg>
+            Files
+            <span v-if="store.documents.length" class="text-[9px] opacity-70">{{ store.documents.length }}</span>
+          </button>
+          <button
+            class="py-3 flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors"
+            :class="mobileTab === 'chat' ? 'text-brand-600' : 'text-neutral-500'"
+            @click="mobileTab = 'chat'"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            Chat
+          </button>
+          <button
+            class="py-3 flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors"
+            :class="mobileTab === 'tools' ? 'text-brand-600' : 'text-neutral-500'"
+            @click="mobileTab = 'tools'"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/>
+            </svg>
+            Tools
+            <span v-if="store.assets.length" class="text-[9px] opacity-70">{{ store.assets.length }}</span>
+          </button>
+        </nav>
+      </div>
+    </template>
 
     <!-- PDF viewer modal -->
     <AppModal
@@ -81,3 +152,7 @@ async function openAsset(a) {
     </AppModal>
   </div>
 </template>
+
+<style scoped>
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+</style>

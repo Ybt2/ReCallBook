@@ -1,6 +1,7 @@
 const { pool } = require("../db/init");
-const { getVectorStore } = require("../db/qdrant");
+const { getVectorStore, client: qdrantClient, COLLECTION_NAME } = require("../db/qdrant");
 const { parsePDF } = require("../utils/pdfParser");
+const { appendLog, consoleLog } = require("../utils/logger");
 
 const express = require("express");
 const multer = require("multer");
@@ -11,8 +12,10 @@ const router = express.Router();
 
 const UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads");
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const TMP_DIR = path.join(UPLOAD_DIR, "tmp");
+if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
 
-const upload = multer({ dest: path.join(UPLOAD_DIR, "tmp") });
+const upload = multer({ dest: TMP_DIR });
 
 // POST /api/documents/upload
 router.post("/upload", upload.single("file"), async (req, res) => {
@@ -25,7 +28,6 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     const { path: tmpPath, originalname } = req.file;
     const docId = uuidv4();
 
-    // Persist the file permanently so it can be viewed later
     storedPath = path.join(UPLOAD_DIR, `${docId}.pdf`);
     fs.renameSync(tmpPath, storedPath);
 
@@ -39,7 +41,22 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     const vectorStore = await getVectorStore();
     await vectorStore.addDocuments(chunks);
 
-    res.json({ id: docId, name: originalname, pages: summary.totalPages, chunks: summary.totalChunks });
+    await appendLog("Fontes", "ID", docId, "uploaded", {
+      pages: summary.totalPages,
+      chunks: summary.totalChunks,
+    });
+    await appendLog("NoteBooks", "ID", notebookId, "file_uploaded", {
+      docId,
+      name: originalname,
+    });
+    consoleLog("documents", "uploaded", { docId, name: originalname, chunks: summary.totalChunks });
+
+    res.json({
+      id: docId,
+      name: originalname,
+      pages: summary.totalPages,
+      chunks: summary.totalChunks,
+    });
   } catch (err) {
     console.error("Erro no upload:", err);
     if (storedPath && fs.existsSync(storedPath)) {
@@ -67,7 +84,7 @@ router.get("/", async (req, res) => {
   }
 });
 
-// GET /api/documents/:id/file  -> serve PDF
+// GET /api/documents/:id/file
 router.get("/:id/file", async (req, res) => {
   const filePath = path.join(UPLOAD_DIR, `${req.params.id}.pdf`);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Ficheiro não encontrado." });
@@ -80,12 +97,18 @@ router.get("/:id/file", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const docId = req.params.id;
+
+    const [rows] = await pool.query(
+      "SELECT notebooks_ID, titulo FROM Fontes WHERE ID = ? LIMIT 1",
+      [docId]
+    );
+    const parentNotebook = rows[0]?.notebooks_ID;
+    const name = rows[0]?.titulo;
+
     await pool.query("DELETE FROM Fontes WHERE ID = ?", [docId]);
 
-    // Also try to drop vectors for this doc
     try {
-      const { client, COLLECTION_NAME } = require("../db/qdrant");
-      await client.delete(COLLECTION_NAME, {
+      await qdrantClient.delete(COLLECTION_NAME, {
         filter: { must: [{ key: "metadata.docId", match: { value: docId } }] },
       });
     } catch (e) {
@@ -94,6 +117,11 @@ router.delete("/:id", async (req, res) => {
 
     const filePath = path.join(UPLOAD_DIR, `${docId}.pdf`);
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+    if (parentNotebook) {
+      await appendLog("NoteBooks", "ID", parentNotebook, "file_deleted", { docId, name });
+    }
+    consoleLog("documents", "deleted", { docId });
 
     res.json({ message: "Documento eliminado." });
   } catch (err) {

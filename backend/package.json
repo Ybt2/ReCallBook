@@ -4,6 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "dev": "node src/app.js",
+    "start": "node src/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -19,12 +21,14 @@
     "@langchain/textsplitters": "^1.0.1",
     "@qdrant/js-client-rest": "^1.17.0",
     "@xenova/transformers": "^2.17.2",
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "franc": "^6.2.0",
     "js-tiktoken": "^1.0.21",
     "multer": "^2.1.1",
     "mysql2": "^3.20.0",
+    "node-fetch": "^2.7.0",
     "pdf-parse": "^1.1.4",
     "uuid": "^13.0.0",
     "zod": "^3.25.76"

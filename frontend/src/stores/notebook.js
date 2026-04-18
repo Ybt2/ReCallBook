@@ -11,6 +11,8 @@ export const useNotebookStore = defineStore("notebook", {
     selectedDocIds: new Set(),
     messages: [],
     assets: [],
+    selectedModel: localStorage.getItem("rb.model") || "",
+    streaming: null, // { id, content, stages:[{key,label,state}], model }
     loading: {
       notebook: false,
       documents: false,
@@ -32,7 +34,14 @@ export const useNotebookStore = defineStore("notebook", {
       this.selectedDocIds = new Set();
       this.messages = [];
       this.assets = [];
+      this.streaming = null;
       this.error = "";
+    },
+
+    setModel(name) {
+      this.selectedModel = name || "";
+      if (name) localStorage.setItem("rb.model", name);
+      else localStorage.removeItem("rb.model");
     },
 
     async loadAll(id) {
@@ -52,7 +61,6 @@ export const useNotebookStore = defineStore("notebook", {
       this.loading.documents = true;
       try {
         this.documents = await DocumentsAPI.list(notebookId);
-        // Default: all docs selected for RAG
         this.selectedDocIds = new Set(this.documents.map((d) => d.id));
       } finally {
         this.loading.documents = false;
@@ -102,25 +110,95 @@ export const useNotebookStore = defineStore("notebook", {
     async sendMessage(text) {
       if (!text.trim() || !this.notebook) return;
       const optimistic = {
-        id: `tmp-${Date.now()}`,
+        id: `tmp-u-${Date.now()}`,
         role: "user",
         content: text,
         sources: [],
       };
       this.messages = [...this.messages, optimistic];
       this.loading.chat = true;
+      this.streaming = {
+        id: `tmp-a-${Date.now()}`,
+        content: "",
+        stages: [],
+        model: this.selectedModel || null,
+      };
+
+      const pushStage = (key) => {
+        if (!this.streaming) return;
+        const label = STAGE_LABELS[key] || key;
+        const stages = [...this.streaming.stages];
+        for (const s of stages) if (s.state === "active") s.state = "done";
+        if (!stages.some((s) => s.key === key)) {
+          stages.push({ key, label, state: "active" });
+        }
+        this.streaming = { ...this.streaming, stages };
+      };
+
       try {
-        const res = await ChatAPI.ask(
-          this.notebook.id,
-          text,
-          this.activeDocIds.length ? this.activeDocIds : null
+        console.log("[Store.sendMessage] calling ChatAPI.stream");
+        await ChatAPI.stream(
+          {
+            notebookId: this.notebook.id,
+            mensagem: text,
+            docIds: this.activeDocIds.length ? this.activeDocIds : null,
+            model: this.selectedModel || undefined,
+          },
+          {
+            onUserSaved: ({ id }) => {
+              console.log("[Store.onUserSaved] id:", id);
+              this.messages = this.messages.map((m) =>
+                m.id === optimistic.id ? { ...m, id } : m
+              );
+            },
+            onStage: ({ stage }) => {
+              console.log("[Store.onStage] stage:", stage, "streaming:", !!this.streaming);
+              if (!this.streaming) return;
+              if (stage === "done") {
+                const stages = this.streaming.stages.map((s) => ({ ...s, state: "done" }));
+                this.streaming = { ...this.streaming, stages };
+              } else {
+                pushStage(stage);
+              }
+              console.log("[Store.onStage] stages now:", JSON.stringify(this.streaming?.stages));
+            },
+            onToken: (t) => {
+              if (!this.streaming) return;
+              this.streaming = {
+                ...this.streaming,
+                content: this.streaming.content + t,
+              };
+            },
+            onDone: (payload) => {
+              console.log("[Store.onDone] payload:", payload);
+              const msg = {
+                id: payload.id,
+                role: "assistant",
+                content: payload.content,
+                sources: payload.sources || [],
+                model: payload.model,
+                tokens: payload.tokens,
+                processingTime: payload.processingTime,
+              };
+              this.messages = [...this.messages, msg];
+              this.streaming = null;
+            },
+            onError: (m) => {
+              console.error("[Store.onError]", m);
+              this.messages = [
+                ...this.messages,
+                {
+                  id: `err-${Date.now()}`,
+                  role: "assistant",
+                  content: `⚠️ ${m}`,
+                  sources: [],
+                },
+              ];
+              this.streaming = null;
+            },
+          }
         );
-        this.messages = [...this.messages, res];
-      } catch (e) {
-        this.messages = [
-          ...this.messages,
-          { id: `err-${Date.now()}`, role: "assistant", content: `⚠️ ${e.message}`, sources: [] },
-        ];
+        console.log("[Store.sendMessage] stream call completed");
       } finally {
         this.loading.chat = false;
       }
@@ -169,3 +247,16 @@ export const useNotebookStore = defineStore("notebook", {
     },
   },
 });
+
+const STAGE_LABELS = {
+  retrieving_store: "Connecting to vector store",
+  detecting_language: "Detecting language",
+  building_queries: "Building search queries",
+  searching_documents: "Searching documents",
+  reranking: "Reranking candidates",
+  generating_answer: "Generating answer",
+  extracting_sources: "Extracting sources",
+  no_results: "No matching passages",
+  done: "Done",
+  error: "Error",
+};

@@ -15,5 +15,8 @@ export const DocumentsAPI = {
       .then((r) => r.data);
   },
   remove: (id) => api.delete(`/documents/${id}`).then((r) => r.data),
-  fileUrl: (id) => `/api/documents/${id}/file`,
+  fileUrl: (id, page) =>
+    page
+      ? `/api/documents/${id}/file#page=${page}`
+      : `/api/documents/${id}/file`,
 };

@@ -4,6 +4,7 @@ const { pool } = require("../db/init");
 const { getVectorStore } = require("../db/qdrant");
 const { generateQuizAction } = require("../services/tools/quizTool");
 const { generateFlashcardsAction } = require("../services/tools/flashcardTool");
+const { appendLog, consoleLog } = require("../utils/logger");
 
 async function getContext(notebookId, docIds, query) {
   const vectorStore = await getVectorStore();
@@ -73,7 +74,16 @@ router.get("/:id", async (req, res) => {
 // DELETE /api/tools/:id
 router.delete("/:id", async (req, res) => {
   try {
+    const [rows] = await pool.query(
+      "SELECT notebook_ID FROM Notebook_assets WHERE ID = ?",
+      [req.params.id]
+    );
     await pool.query("DELETE FROM Notebook_assets WHERE ID = ?", [req.params.id]);
+    if (rows[0]) {
+      await appendLog("NoteBooks", "ID", rows[0].notebook_ID, "asset_deleted", {
+        assetId: req.params.id,
+      });
+    }
     res.json({ message: "Recurso eliminado." });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -91,6 +101,13 @@ router.post("/quiz", async (req, res) => {
 
     const title = prompt?.trim() ? `Quiz: ${prompt.slice(0, 40)}` : `Quiz (${numQuestions} questões)`;
     const id = await saveAsset(notebookId, "quiz", quiz, { title, prompt, numQuestions, difficulty });
+
+    await appendLog("NoteBooks", "ID", notebookId, "quiz_generated", {
+      assetId: id,
+      numQuestions,
+      difficulty,
+    });
+    consoleLog("tools", "quiz generated", { notebookId, numQuestions, difficulty });
 
     res.json({ message: "Quiz gerado!", id, data: quiz });
   } catch (err) {
@@ -110,6 +127,13 @@ router.post("/flashcards", async (req, res) => {
 
     const title = prompt?.trim() ? `Flashcards: ${prompt.slice(0, 40)}` : `Flashcards (${numCards})`;
     const id = await saveAsset(notebookId, "flashcards", flashcards, { title, prompt, numCards, difficulty });
+
+    await appendLog("NoteBooks", "ID", notebookId, "flashcards_generated", {
+      assetId: id,
+      numCards,
+      difficulty,
+    });
+    consoleLog("tools", "flashcards generated", { notebookId, numCards, difficulty });
 
     res.json({ message: "Flashcards gerados!", id, data: flashcards });
   } catch (err) {
