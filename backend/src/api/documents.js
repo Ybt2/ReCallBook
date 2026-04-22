@@ -1,6 +1,7 @@
 const { pool } = require("../db/init");
 const { getVectorStore, client: qdrantClient, COLLECTION_NAME } = require("../db/qdrant");
-const { parsePDF } = require("../utils/pdfParser");
+const { parsePDF } = require("../utils/readers/pdfParser");
+const { parseImage, isImageFile, getImageType } = require("../services/ocr");
 const { appendLog, consoleLog } = require("../utils/logger");
 
 const express = require("express");
@@ -17,6 +18,14 @@ if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
 
 const upload = multer({ dest: TMP_DIR });
 
+const MIME_MAP = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+  ".pdf": "application/pdf",
+};
+
 // POST /api/documents/upload
 router.post("/upload", upload.single("file"), async (req, res) => {
   let storedPath = null;
@@ -27,15 +36,23 @@ router.post("/upload", upload.single("file"), async (req, res) => {
 
     const { path: tmpPath, originalname } = req.file;
     const docId = uuidv4();
+    const ext = path.extname(originalname).toLowerCase();
+    const isImage = isImageFile(originalname);
+    const fileType = isImage ? getImageType(originalname) : "pdf";
 
-    storedPath = path.join(UPLOAD_DIR, `${docId}.pdf`);
+    storedPath = path.join(UPLOAD_DIR, `${docId}${ext}`);
     fs.renameSync(tmpPath, storedPath);
 
-    const { chunks, summary } = await parsePDF(storedPath, notebookId, docId, originalname);
+    let chunks, summary;
+    if (isImage) {
+      ({ chunks, summary } = await parseImage(storedPath, notebookId, docId, originalname));
+    } else {
+      ({ chunks, summary } = await parsePDF(storedPath, notebookId, docId, originalname));
+    }
 
     await pool.query(
       "INSERT INTO Fontes (ID, notebooks_ID, titulo, tipo, estado) VALUES (?, ?, ?, ?, ?)",
-      [docId, notebookId, originalname, "pdf", "processado"]
+      [docId, notebookId, originalname, fileType, "processado"]
     );
 
     const vectorStore = await getVectorStore();
@@ -54,6 +71,7 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     res.json({
       id: docId,
       name: originalname,
+      type: fileType,
       pages: summary.totalPages,
       chunks: summary.totalChunks,
     });
@@ -86,9 +104,19 @@ router.get("/", async (req, res) => {
 
 // GET /api/documents/:id/file
 router.get("/:id/file", async (req, res) => {
-  const filePath = path.join(UPLOAD_DIR, `${req.params.id}.pdf`);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: "Ficheiro não encontrado." });
-  res.setHeader("Content-Type", "application/pdf");
+  const docId = req.params.id;
+  const extensions = [".pdf", ".jpg", ".jpeg", ".png", ".svg"];
+  let filePath = null;
+  for (const ext of extensions) {
+    const candidate = path.join(UPLOAD_DIR, `${docId}${ext}`);
+    if (fs.existsSync(candidate)) {
+      filePath = candidate;
+      break;
+    }
+  }
+  if (!filePath) return res.status(404).json({ error: "Ficheiro não encontrado." });
+  const ext = path.extname(filePath).toLowerCase();
+  res.setHeader("Content-Type", MIME_MAP[ext] || "application/octet-stream");
   res.setHeader("Content-Disposition", "inline");
   fs.createReadStream(filePath).pipe(res);
 });
@@ -115,8 +143,14 @@ router.delete("/:id", async (req, res) => {
       console.warn("Qdrant delete warning:", e.message);
     }
 
-    const filePath = path.join(UPLOAD_DIR, `${docId}.pdf`);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    const extensions = [".pdf", ".jpg", ".jpeg", ".png", ".svg"];
+    for (const ext of extensions) {
+      const filePath = path.join(UPLOAD_DIR, `${docId}${ext}`);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+        break;
+      }
+    }
 
     if (parentNotebook) {
       await appendLog("NoteBooks", "ID", parentNotebook, "file_deleted", { docId, name });

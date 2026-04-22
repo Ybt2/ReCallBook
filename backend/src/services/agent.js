@@ -12,8 +12,15 @@ const llmQueryBuilder = new ChatOllama({
   temperature: 0,
 });
 
+const llmOcr = new ChatOllama({
+  model: "glm-ocr",
+  baseUrl: "http://localhost:11434",
+  temperature: 0,
+});
+
 module.exports = {
   llm,
   llmQueryBuilder,
+  llmOcr,
 };
 

@@ -35,22 +35,22 @@ async function startServer() {
 
     // 1. Inicializar MySQL (Criar DB e Tabelas)
     await initDB();
-    console.log("✅ MySQL Ready");
+    console.log("MySQL Ready");
 
     // 2. Inicializar Qdrant (Verificar Coleções)
     await initQdrant();
-    console.log("✅ Qdrant Ready");
+    console.log("Qdrant Ready");
 
-    console.log("⏳ A pré-carregar modelo de reranking...");
+    console.log("A pré-carregar modelo de reranking...");
     await initCross_encoder();
 
     // 3. Iniciar o Express
     app.listen(PORT, () => {
-      console.log(`🚀 ReCallBook backend running on port ${PORT}`);
+      console.log(`ReCallBook backend running on port ${PORT}`);
     });
 
   } catch (error) {
-    console.error("❌ Failed to start server:", error);
+    console.error("Failed to start server:", error);
     process.exit(1); // Fecha o processo se as DBs falharem
   }
 }

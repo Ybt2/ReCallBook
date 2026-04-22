@@ -1,5 +1,5 @@
 const { z } = require("zod");
-const llm = require("../agent");
+const { llm } = require("../agent");
 
 const FlashcardSchema = z.object({
   flashcards: z.array(

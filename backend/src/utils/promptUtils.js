@@ -13,12 +13,12 @@ const langMap = {
 
 async function detectLanguage(text) {
   try {
-    if (!text || text.length < 10) return "English";
+    if (!text || text.length < 10) return "Portuguese";
     const langCode = franc(text);
-    if (langCode === "und") return "English";
-    return langMap[langCode] || "English";
+    if (langCode === "und") return "Portuguese";
+    return langMap[langCode] || "Portuguese";
   } catch (_) {
-    return "English";
+    return "Portuguese";
   }
 }
 
