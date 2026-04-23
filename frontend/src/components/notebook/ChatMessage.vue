@@ -101,8 +101,8 @@ function onCiteClick(n) {
   border-radius: 0.375rem;
   font-size: 11px;
   font-weight: 600;
-  background: rgb(224 242 254);
-  color: rgb(2 132 199);
+  background: #e0f2fe;
+  color: #0369a1;
   cursor: pointer;
   vertical-align: baseline;
   transition: background 0.15s;

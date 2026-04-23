@@ -22,7 +22,7 @@ const installing = ref(false);
 const installProgress = ref(null); // { percent, status, total, completed }
 
 const disabled = computed(
-  () => !!store.streaming || !input.value.trim() || !store.notebook
+  () => !!store.streaming || !input.value.trim() || !store.notebook || store.isGenerating
 );
 
 const currentModel = computed(() => store.selectedModel || models.value[0]?.name || "default");
@@ -255,18 +255,20 @@ function onSourceClick(s) {
           v-model="input"
           rows="1"
           class="input !py-3 resize-none max-h-40 flex-1"
-          placeholder="Ask about your sources…"
+          :class="{ 'opacity-50 cursor-not-allowed': store.isGenerating }"
+          :placeholder="store.isGenerating ? 'Generating…' : 'Ask about your sources…'"
+          :disabled="store.isGenerating"
           @keydown="onKey"
         />
-        <button class="btn-primary h-11" :disabled="disabled" @click="submit">
+        <button class="btn-primary h-11" :disabled="disabled" @click="submit" aria-label="Send message">
           <Spinner v-if="store.streaming" />
           <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z" stroke-linejoin="round"/>
           </svg>
         </button>
       </div>
-      <div class="text-[11px] text-neutral-400 text-center mt-1 hidden sm:block">
-        ReCallBook may be inaccurate. Please verify the answers.
+      <div class="text-[11px] text-neutral-600 text-center mt-1 hidden sm:block">
+        ReCallBook may be inaccurate. We advise verifying the answers.
       </div>
     </div>
   </section>

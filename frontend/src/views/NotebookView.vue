@@ -6,6 +6,7 @@ import FilesPanel from "../components/notebook/FilesPanel.vue";
 import ChatPanel from "../components/notebook/ChatPanel.vue";
 import ToolsPanel from "../components/notebook/ToolsPanel.vue";
 import PdfViewer from "../components/viewers/PdfViewer.vue";
+import ImageViewer from "../components/viewers/ImageViewer.vue";
 import QuizViewer from "../components/viewers/QuizViewer.vue";
 import FlashcardsViewer from "../components/viewers/FlashcardsViewer.vue";
 import AppModal from "../components/common/AppModal.vue";
@@ -16,6 +17,7 @@ const props = defineProps({ id: [String, Number] });
 const store = useNotebookStore();
 
 const pdfDoc = ref(null); // { id, name, page? }
+const imageDoc = ref(null);
 const assetView = ref(null);
 const loadingAsset = ref(false);
 
@@ -43,16 +45,26 @@ function openPdf(doc) {
   pdfDoc.value = doc;
 }
 
+function openImage(doc) {
+  imageDoc.value = doc;
+}
+
 function openSource(src) {
   if (!src) return;
   const docId = src.docId || src.source;
   if (!docId) return;
   const doc = store.documents.find((d) => d.id === docId || d.id === Number(docId));
-  pdfDoc.value = {
-    id: docId,
-    name: doc?.name || src.source_name || "Source",
-    page: src.page || 1,
-  };
+  if (!doc) return;
+  const imageTypes = ["jpeg", "png", "svg"];
+  if (imageTypes.includes(doc.type)) {
+    imageDoc.value = { id: docId, name: doc.name || src.source_name || "Source" };
+  } else if (String(doc.type).toLowerCase() === "pdf") {
+    pdfDoc.value = {
+      id: docId,
+      name: doc.name || src.source_name || "Source",
+      page: src.page || 1,
+    };
+  }
 }
 </script>
 
@@ -73,7 +85,7 @@ function openSource(src) {
       <!-- Desktop: 3-column layout -->
       <div class="flex-1 min-h-0 hidden lg:grid grid-cols-[280px_1fr_340px]">
         <div class="border-r border-neutral-200 min-h-0">
-          <FilesPanel @open-pdf="openPdf" />
+          <FilesPanel @open-pdf="openPdf" @open-image="openImage" />
         </div>
         <div class="border-r border-neutral-200 min-h-0">
           <ChatPanel @open-source="openSource" />
@@ -86,7 +98,7 @@ function openSource(src) {
       <!-- Mobile/Tablet: tabbed layout with bottom nav -->
       <div class="flex-1 min-h-0 flex flex-col lg:hidden">
         <div class="flex-1 min-h-0">
-          <FilesPanel v-show="mobileTab === 'files'" @open-pdf="openPdf" />
+          <FilesPanel v-show="mobileTab === 'files'" @open-pdf="openPdf" @open-image="openImage" />
           <ChatPanel v-show="mobileTab === 'chat'" @open-source="openSource" />
           <ToolsPanel v-show="mobileTab === 'tools'" @open-asset="openAsset" />
         </div>
@@ -135,6 +147,16 @@ function openSource(src) {
       @close="pdfDoc = null"
     >
       <PdfViewer v-if="pdfDoc" :doc="pdfDoc" />
+    </AppModal>
+
+    <!-- Image viewer modal -->
+    <AppModal
+      :show="!!imageDoc"
+      :title="imageDoc?.name"
+      size="xl"
+      @close="imageDoc = null"
+    >
+      <ImageViewer v-if="imageDoc" :doc="imageDoc" />
     </AppModal>
 
     <!-- Asset viewer modal -->

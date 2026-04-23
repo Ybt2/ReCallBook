@@ -13,6 +13,7 @@ export const useNotebookStore = defineStore("notebook", {
     assets: [],
     selectedModel: localStorage.getItem("rb.model") || "",
     streaming: null, // { id, content, stages:[{key,label,state}], model }
+    isGenerating: false,
     loading: {
       notebook: false,
       documents: false,
@@ -35,6 +36,7 @@ export const useNotebookStore = defineStore("notebook", {
       this.messages = [];
       this.assets = [];
       this.streaming = null;
+      this.isGenerating = false;
       this.error = "";
     },
 
@@ -214,8 +216,9 @@ export const useNotebookStore = defineStore("notebook", {
     },
 
     async generateTool({ type, prompt, count, difficulty }) {
-      if (!this.notebook) return;
+      if (!this.notebook || this.isGenerating) return;
       this.loading.tool = true;
+      this.isGenerating = true;
       try {
         const docIds = this.activeDocIds.length ? this.activeDocIds : null;
         if (type === "quiz") {
@@ -238,6 +241,7 @@ export const useNotebookStore = defineStore("notebook", {
         await this.fetchAssets(this.notebook.id);
       } finally {
         this.loading.tool = false;
+        this.isGenerating = false;
       }
     },
 

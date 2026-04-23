@@ -1,7 +1,7 @@
 const { pool } = require("../db/init");
 const { getVectorStore, client: qdrantClient, COLLECTION_NAME } = require("../db/qdrant");
 const { parsePDF } = require("../utils/readers/pdfParser");
-const { parseImage, isImageFile, getImageType } = require("../services/ocr");
+const { parseImage, isImageFile, getImageType } = require("../services/vision");
 const { appendLog, consoleLog } = require("../utils/logger");
 
 const express = require("express");

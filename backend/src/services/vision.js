@@ -1,10 +1,10 @@
 const { Document } = require("@langchain/core/documents");
 const { RecursiveCharacterTextSplitter } = require("@langchain/textsplitters");
+const { HumanMessage } = require("@langchain/core/messages");
 const fs = require("fs");
 const path = require("path");
 
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
-const OCR_MODEL = "glm-ocr";
+const { llmvision } = require("./agent");
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".svg"];
 
@@ -15,7 +15,7 @@ const EXT_TO_TYPE = {
   ".svg": "svg",
 };
 
-const OCR_PROMPT = `Analyze this image carefully.
+const VISION_PROMPT = `Analyze this image carefully.
 
 1. First, try to extract ALL text visible in the image. If you find text, return it faithfully preserving the original structure (paragraphs, lists, tables, headings, etc.).
 
@@ -28,12 +28,6 @@ const splitter = new RecursiveCharacterTextSplitter({
   chunkOverlap: 300,
   separators: ["\n\n", "\n", ". ", "! ", "? ", " ", ""],
 });
-
-async function doFetch(url, opts) {
-  if (typeof fetch === "function") return fetch(url, opts);
-  const nf = require("node-fetch");
-  return nf(url, opts);
-}
 
 function isImageFile(filename) {
   const ext = path.extname(filename).toLowerCase();
@@ -48,25 +42,18 @@ function getImageType(filename) {
 async function processImage(filePath) {
   const imageBuffer = fs.readFileSync(filePath);
   const base64Image = imageBuffer.toString("base64");
+  const ext = path.extname(filePath).toLowerCase();
+  const mimeType = ext === ".png" ? "image/png" : ext === ".svg" ? "image/svg+xml" : "image/jpeg";
 
-  const response = await doFetch(`${OLLAMA_URL}/api/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: OCR_MODEL,
-      prompt: OCR_PROMPT,
-      images: [base64Image],
-      stream: false,
-    }),
+  const message = new HumanMessage({
+    content: [
+      { type: "text", text: VISION_PROMPT },
+      { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}` } },
+    ],
   });
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => "");
-    throw new Error(`glm-ocr responded with status ${response.status}: ${body}`);
-  }
-
-  const json = await response.json();
-  const content = json.response || "";
+  const response = await llmvision.invoke([message]);
+  const content = response.content || "";
 
   return content.trim();
 }
@@ -75,7 +62,7 @@ async function parseImage(filePath, notebookId, docId, originalname) {
   const extractedText = await processImage(filePath);
   const sourceType = getImageType(originalname);
 
-  console.log(`Image OCR [${sourceType}]: ${originalname} | ${extractedText.length} chars`);
+  console.log(`Image Vision [${sourceType}]: ${originalname} | ${extractedText.length} chars`);
 
   const rawDoc = new Document({
     pageContent: extractedText,

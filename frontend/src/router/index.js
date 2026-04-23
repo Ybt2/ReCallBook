@@ -28,6 +28,12 @@ const routes = [
     meta: { requiresAuth: true },
     props: true,
   },
+  {
+    path: "/configurations",
+    name: "configurations",
+    component: () => import("../views/ConfigurationsView.vue"),
+    meta: { requiresAuth: true },
+  },
   { path: "/:pathMatch(.*)*", redirect: "/dashboard" },
 ];
 

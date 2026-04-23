@@ -24,7 +24,7 @@ async function onSubmit() {
           <span class="text-2xl font-semibold">RecallBook</span>
         </div>
         <h1 class="text-3xl font-bold leading-tight">
-          Turn your PDFs into conversations, quizzes and flashcards.
+          Turn your Files into conversations, and use Tools to study them.
         </h1>
         <p class="mt-4 text-brand-100">
           Upload your study material, chat with an AI grounded in your own sources,

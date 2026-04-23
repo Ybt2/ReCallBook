@@ -6,7 +6,10 @@ import Spinner from "../common/Spinner.vue";
 
 const store = useNotebookStore();
 const toasts = useToastStore();
-const emit = defineEmits(["open-pdf"]);
+const emit = defineEmits(["open-pdf", "open-image"]);
+
+const IMAGE_TYPES = ["jpeg", "png", "svg"];
+function isImg(d) { return IMAGE_TYPES.includes(d.type); }
 
 const fileInput = ref(null);
 const uploading = ref(false);
@@ -67,13 +70,13 @@ async function remove(d) {
         ref="fileInput"
         type="file"
         multiple
-        accept="application/pdf"
+        accept="application/pdf,image/jpeg,image/png,image/svg+xml"
         class="hidden"
         @change="onUpload"
       />
     </div>
 
-    <div class="px-4 py-2 border-b border-neutral-100 flex items-center gap-2 text-xs shrink-0">
+    <label class="px-4 py-2 border-b border-neutral-100 flex items-center gap-2 text-xs shrink-0">
       <input
         type="checkbox"
         class="accent-brand-600"
@@ -81,14 +84,14 @@ async function remove(d) {
         @change="store.selectAllDocs($event.target.checked)"
       />
       <span class="text-neutral-600">Select all</span>
-    </div>
+    </label>
 
     <div class="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1 min-h-0">
       <div v-if="store.loading.documents" class="p-3 text-sm text-neutral-500 flex items-center gap-2">
         <Spinner /> Loading…
       </div>
       <div v-else-if="!store.documents.length" class="p-5 text-center text-sm text-neutral-500">
-        No files yet. Upload a PDF to get started.
+        No files yet. Upload a PDF or image to get started.
       </div>
       <div
         v-for="d in store.documents"
@@ -100,13 +103,23 @@ async function remove(d) {
           class="accent-brand-600 shrink-0"
           :checked="store.selectedDocIds.has(d.id)"
           @change="store.toggleDoc(d.id)"
+          :aria-label="'Select ' + d.name"
         />
         <button
           class="flex-1 min-w-0 text-left flex items-center gap-2"
-          @click="emit('open-pdf', d)"
-          title="Open PDF"
+          @click="isImg(d) ? emit('open-image', d) : emit('open-pdf', d)"
+          :title="isImg(d) ? 'Open Image' : 'Open PDF'"
         >
-          <span class="w-7 h-7 shrink-0 rounded bg-red-50 text-red-600 grid place-items-center text-[10px] font-bold">
+          <span
+            v-if="isImg(d)"
+            class="w-7 h-7 shrink-0 rounded bg-blue-50 text-blue-600 grid place-items-center text-[10px] font-bold"
+          >
+            {{ d.type.toUpperCase() }}
+          </span>
+          <span
+            v-else
+            class="w-7 h-7 shrink-0 rounded bg-red-50 text-red-600 grid place-items-center text-[10px] font-bold"
+          >
             PDF
           </span>
           <span class="truncate text-sm text-neutral-800">{{ d.name }}</span>

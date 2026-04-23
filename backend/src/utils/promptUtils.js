@@ -1,5 +1,4 @@
-const { llm: defaultLlm, llmQueryBuilder } = require("../services/agent");
-const { ChatOllama } = require("@langchain/ollama");
+const { llm: defaultLlm, llmQueryBuilder, createLlm } = require("../services/agent");
 const { franc } = require("franc");
 
 const langMap = {
@@ -83,11 +82,7 @@ ${userMessage}
 
 function pickLlm(model) {
   if (!model) return defaultLlm;
-  return new ChatOllama({
-    model,
-    baseUrl: process.env.OLLAMA_URL || "http://localhost:11434",
-    temperature: 0,
-  });
+  return createLlm(model);
 }
 
 function buildAnswerPrompt(query, context, history, detectedLang) {
