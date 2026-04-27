@@ -62,8 +62,10 @@ export const useNotebookStore = defineStore("notebook", {
     async fetchDocuments(notebookId) {
       this.loading.documents = true;
       try {
-        this.documents = await DocumentsAPI.list(notebookId);
-        this.selectedDocIds = new Set(this.documents.map((d) => d.id));
+        const result = await DocumentsAPI.list(notebookId);
+        const docs = Array.isArray(result) ? result : result.data || [];
+        this.documents = docs;
+        this.selectedDocIds = new Set(docs.map((d) => d.id));
       } finally {
         this.loading.documents = false;
       }
@@ -103,7 +105,8 @@ export const useNotebookStore = defineStore("notebook", {
     async fetchMessages(notebookId) {
       this.loading.messages = true;
       try {
-        this.messages = await ChatAPI.messages(notebookId);
+        const result = await ChatAPI.messages(notebookId);
+        this.messages = Array.isArray(result) ? result : result.data || [];
       } finally {
         this.loading.messages = false;
       }

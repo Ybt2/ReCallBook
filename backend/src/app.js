@@ -5,6 +5,8 @@ const { initCross_encoder } = require('./services/cross_encoder.js');
 
 const { initDB } = require("./db/init");
 const { initQdrant } = require("./db/qdrant");
+const { requireAuth } = require("./middleware/auth");
+const { errorHandler } = require("./middleware/errorHandler");
 
 const authRouter = require("./api/auth");
 const notebooksRouter = require("./api/notebooks");
@@ -16,15 +18,26 @@ const ollamaRouter = require("./api/ollama");
 const app = express();
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use(cors());
 
-// Rotas
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "http://localhost:5173").split(",").map(s => s.trim());
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    cb(new Error("Not allowed by CORS"));
+  },
+  credentials: true,
+}));
+
 app.use("/api/auth", authRouter);
-app.use("/api/notebooks", notebooksRouter);
-app.use("/api/documents", documentsRouter);
-app.use("/api/tools", toolsRouter);
-app.use("/api/chat", chatRouter);
-app.use("/api/ollama", ollamaRouter);
+app.use("/api/notebooks", requireAuth, notebooksRouter);
+app.use("/api/documents", requireAuth, documentsRouter);
+app.use("/api/tools", requireAuth, toolsRouter);
+app.use("/api/chat", requireAuth, chatRouter);
+app.use("/api/ollama", requireAuth, ollamaRouter);
+
+app.use(errorHandler);
+
+module.exports = app;
 
 const PORT = process.env.PORT || 3000;
 
@@ -55,4 +68,6 @@ async function startServer() {
   }
 }
 
-startServer();
+if (require.main === module) {
+  startServer();
+}

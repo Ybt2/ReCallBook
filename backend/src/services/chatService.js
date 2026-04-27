@@ -3,9 +3,6 @@ const { searchDocuments } = require("../utils/searchUtils");
 const { detectLanguage, buildQueries, generateAnswer, streamAnswer } = require("../utils/promptUtils");
 const { buildContext, extractSources } = require("../utils/contextUtils");
 const crossEncoder = require("./cross_encoder");
-const { getEncoding } = require("js-tiktoken");
-
-const enc = getEncoding("cl100k_base");
 
 /**
  * Run the RAG pipeline.
@@ -43,7 +40,7 @@ async function chatWithAi(notebookId, userMessage, history, docIds = null, opts 
         return {
           texto_final: "No relevant information found.",
           fontes: [],
-          usage: { totalTokens: 0 },
+          usage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
           model: model || null,
         };
       }
@@ -52,11 +49,15 @@ async function chatWithAi(notebookId, userMessage, history, docIds = null, opts 
     onStage("generating_answer", { model: model || "default" });
     const context = buildContext(finalDocs);
 
-    let answer;
+    let answer, usage;
     if (onToken) {
-      answer = await streamAnswer(userMessage, context, history, detectedLang, model, onToken);
+      const result = await streamAnswer(userMessage, context, history, detectedLang, model, onToken);
+      answer = typeof result === "string" ? result : result.text;
+      usage = (typeof result === "object" && result.usage) ? result.usage : null;
     } else {
-      answer = await generateAnswer(userMessage, context, history, detectedLang, model);
+      const result = await generateAnswer(userMessage, context, history, detectedLang, model);
+      answer = typeof result === "string" ? result : result.text;
+      usage = (typeof result === "object" && result.usage) ? result.usage : null;
     }
 
     onStage("extracting_sources");
@@ -66,7 +67,11 @@ async function chatWithAi(notebookId, userMessage, history, docIds = null, opts 
     return {
       texto_final: answer,
       fontes,
-      usage: { totalTokens: enc.encode(context + answer).length },
+      usage: {
+        totalTokens: usage?.totalTokens || 0,
+        promptTokens: usage?.promptTokens || 0,
+        completionTokens: usage?.completionTokens || 0,
+      },
       model: model || null,
     };
   } catch (error) {
@@ -75,7 +80,7 @@ async function chatWithAi(notebookId, userMessage, history, docIds = null, opts 
     return {
       texto_final: "An error occurred.",
       fontes: [],
-      usage: { totalTokens: 0 },
+      usage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
       model: model || null,
     };
   }

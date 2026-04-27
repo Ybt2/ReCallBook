@@ -1,3 +1,5 @@
+const { buildNotebookFilter } = require("./validation");
+
 const TOP_K = 25;
 
 function deduplicateSearchResults(rawResults) {
@@ -12,10 +14,7 @@ function deduplicateSearchResults(rawResults) {
 }
 
 async function searchDocuments(vectorStore, queries, notebookId, docIds = null) {
-  const must = [{ key: "metadata.notebookId", match: { value: String(notebookId) } }];
-  const filter = Array.isArray(docIds) && docIds.length > 0
-    ? { must, should: docIds.map(id => ({ key: "metadata.docId", match: { value: String(id) } })) }
-    : { must };
+  const filter = buildNotebookFilter(notebookId, docIds);
 
   const rawResults = await Promise.all(
     queries.map(q => vectorStore.similaritySearchWithScore(q, TOP_K, filter))

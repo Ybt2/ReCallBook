@@ -5,16 +5,15 @@ const { getVectorStore } = require("../db/qdrant");
 const { generateQuizAction } = require("../services/tools/quizTool");
 const { generateFlashcardsAction } = require("../services/tools/flashcardTool");
 const { appendLog, consoleLog } = require("../utils/logger");
+const { buildNotebookFilter } = require("../utils/validation");
+const { AppError } = require("../middleware/errorHandler");
 
 async function getContext(notebookId, docIds, query) {
   const vectorStore = await getVectorStore();
-  const must = [{ key: "metadata.notebookId", match: { value: String(notebookId) } }];
-  const filter = Array.isArray(docIds) && docIds.length > 0
-    ? { must, should: docIds.map((id) => ({ key: "metadata.docId", match: { value: String(id) } })) }
-    : { must };
+  const filter = buildNotebookFilter(notebookId, docIds);
 
   const results = await vectorStore.similaritySearch(query, 8, filter);
-  if (results.length === 0) throw new Error("Conteúdo não encontrado para gerar o recurso.");
+  if (results.length === 0) throw new AppError("Conteúdo não encontrado para gerar o recurso.", "NO_CONTENT", 404);
   return results.map((r) => r.pageContent).join("\n\n");
 }
 
@@ -28,9 +27,9 @@ async function saveAsset(notebookId, type, data, meta = {}) {
 }
 
 // GET /api/tools?notebookId=
-router.get("/", async (req, res) => {
+router.get("/", async (req, res, next) => {
   const { notebookId } = req.query;
-  if (!notebookId) return res.status(400).json({ error: "notebookId é obrigatório." });
+  if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
 
   try {
     const [rows] = await pool.query(
@@ -49,30 +48,28 @@ router.get("/", async (req, res) => {
     });
     res.json(assets);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // GET /api/tools/:id
-router.get("/:id", async (req, res) => {
+router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       "SELECT ID as id, asset_type as type, data, created_at FROM Notebook_assets WHERE ID = ? LIMIT 1",
       [req.params.id]
     );
-    if (rows.length === 0) return res.status(404).json({ error: "Recurso não encontrado." });
+    if (rows.length === 0) return next(new AppError("Recurso não encontrado.", "NOT_FOUND", 404));
     const r = rows[0];
     const data = typeof r.data === "string" ? JSON.parse(r.data) : r.data;
     res.json({ id: r.id, type: r.type, data, created_at: r.created_at });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // DELETE /api/tools/:id
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       "SELECT notebook_ID FROM Notebook_assets WHERE ID = ?",
@@ -86,12 +83,12 @@ router.delete("/:id", async (req, res) => {
     }
     res.json({ message: "Recurso eliminado." });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /api/tools/quiz
-router.post("/quiz", async (req, res) => {
+router.post("/quiz", async (req, res, next) => {
   try {
     const { notebookId, docIds, prompt, numQuestions = 5, difficulty = "medium" } = req.body;
     const query = prompt?.trim() || "Extract main concepts for a quiz";
@@ -111,13 +108,12 @@ router.post("/quiz", async (req, res) => {
 
     res.json({ message: "Quiz gerado!", id, data: quiz });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /api/tools/flashcards
-router.post("/flashcards", async (req, res) => {
+router.post("/flashcards", async (req, res, next) => {
   try {
     const { notebookId, docIds, prompt, numCards = 10, difficulty = "medium" } = req.body;
     const query = prompt?.trim() || "Key terms for flashcards";
@@ -137,8 +133,7 @@ router.post("/flashcards", async (req, res) => {
 
     res.json({ message: "Flashcards gerados!", id, data: flashcards });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

@@ -3,6 +3,7 @@ const { getVectorStore, client: qdrantClient, COLLECTION_NAME } = require("../db
 const { parsePDF } = require("../utils/readers/pdfParser");
 const { parseImage, isImageFile, getImageType } = require("../services/vision");
 const { appendLog, consoleLog } = require("../utils/logger");
+const { AppError } = require("../middleware/errorHandler");
 
 const express = require("express");
 const multer = require("multer");
@@ -16,7 +17,35 @@ if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const TMP_DIR = path.join(UPLOAD_DIR, "tmp");
 if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
 
-const upload = multer({ dest: TMP_DIR });
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
+
+const ALLOWED_MIMES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/svg+xml",
+]);
+
+const ALLOWED_EXTENSIONS = new Set([".pdf", ".jpg", ".jpeg", ".png", ".svg"]);
+
+const upload = multer({
+  dest: TMP_DIR,
+  limits: { fileSize: MAX_FILE_SIZE },
+  fileFilter(_req, file, cb) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      return cb(new AppError(`File extension '${ext}' is not allowed.`, "INVALID_FILE_TYPE", 400));
+    }
+    if (!ALLOWED_MIMES.has(file.mimetype)) {
+      return cb(new AppError(`MIME type '${file.mimetype}' is not allowed.`, "INVALID_MIME_TYPE", 400));
+    }
+    cb(null, true);
+  },
+});
+
+function sanitizeFilename(name) {
+  return path.basename(name).replace(/[^a-zA-Z0-9._\-\s()]/g, "_").slice(0, 255);
+}
 
 const MIME_MAP = {
   ".jpg": "image/jpeg",
@@ -27,32 +56,33 @@ const MIME_MAP = {
 };
 
 // POST /api/documents/upload
-router.post("/upload", upload.single("file"), async (req, res) => {
+router.post("/upload", upload.single("file"), async (req, res, next) => {
   let storedPath = null;
   try {
     const { notebookId } = req.body;
-    if (!notebookId) return res.status(400).json({ error: "notebookId é obrigatório." });
-    if (!req.file) return res.status(400).json({ error: "Ficheiro em falta." });
+    if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
+    if (!req.file) return next(new AppError("Ficheiro em falta.", "VALIDATION_ERROR", 400));
 
     const { path: tmpPath, originalname } = req.file;
+    const safeName = sanitizeFilename(originalname);
     const docId = uuidv4();
-    const ext = path.extname(originalname).toLowerCase();
-    const isImage = isImageFile(originalname);
-    const fileType = isImage ? getImageType(originalname) : "pdf";
+    const ext = path.extname(safeName).toLowerCase();
+    const isImage = isImageFile(safeName);
+    const fileType = isImage ? getImageType(safeName) : "pdf";
 
     storedPath = path.join(UPLOAD_DIR, `${docId}${ext}`);
     fs.renameSync(tmpPath, storedPath);
 
     let chunks, summary;
     if (isImage) {
-      ({ chunks, summary } = await parseImage(storedPath, notebookId, docId, originalname));
+      ({ chunks, summary } = await parseImage(storedPath, notebookId, docId, safeName));
     } else {
-      ({ chunks, summary } = await parsePDF(storedPath, notebookId, docId, originalname));
+      ({ chunks, summary } = await parsePDF(storedPath, notebookId, docId, safeName));
     }
 
     await pool.query(
       "INSERT INTO Fontes (ID, notebooks_ID, titulo, tipo, estado) VALUES (?, ?, ?, ?, ?)",
-      [docId, notebookId, originalname, fileType, "processado"]
+      [docId, notebookId, safeName, fileType, "processado"]
     );
 
     const vectorStore = await getVectorStore();
@@ -64,47 +94,55 @@ router.post("/upload", upload.single("file"), async (req, res) => {
     });
     await appendLog("NoteBooks", "ID", notebookId, "file_uploaded", {
       docId,
-      name: originalname,
+      name: safeName,
     });
-    consoleLog("documents", "uploaded", { docId, name: originalname, chunks: summary.totalChunks });
+    consoleLog("documents", "uploaded", { docId, name: safeName, chunks: summary.totalChunks });
 
     res.json({
       id: docId,
-      name: originalname,
+      name: safeName,
       type: fileType,
       pages: summary.totalPages,
       chunks: summary.totalChunks,
     });
   } catch (err) {
-    console.error("Erro no upload:", err);
     if (storedPath && fs.existsSync(storedPath)) {
       try { fs.unlinkSync(storedPath); } catch (_) {}
     }
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // GET /api/documents?notebookId=
-router.get("/", async (req, res) => {
-  const { notebookId } = req.query;
-  if (!notebookId) return res.status(400).json({ error: "notebookId é obrigatório." });
+router.get("/", async (req, res, next) => {
+  const { notebookId, page, limit } = req.query;
+  if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
 
   try {
-    const [rows] = await pool.query(
-      `SELECT ID as id, titulo as name, tipo as type, estado as status, created_at
-       FROM Fontes WHERE notebooks_ID = ? ORDER BY created_at DESC`,
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 50));
+    const offset = (pageNum - 1) * pageSize;
+
+    const [[{ total }]] = await pool.query(
+      "SELECT COUNT(*) as total FROM Fontes WHERE notebooks_ID = ?",
       [notebookId]
     );
-    res.json(rows);
+    const [rows] = await pool.query(
+      `SELECT ID as id, titulo as name, tipo as type, estado as status, created_at
+       FROM Fontes WHERE notebooks_ID = ? ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      [notebookId, pageSize, offset]
+    );
+    res.json({ data: rows, pagination: { page: pageNum, limit: pageSize, total, totalPages: Math.ceil(total / pageSize) } });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // GET /api/documents/:id/file
-router.get("/:id/file", async (req, res) => {
+router.get("/:id/file", async (req, res, next) => {
   const docId = req.params.id;
+  if (!/^[a-f0-9\-]{36}$/i.test(docId)) return next(new AppError("Invalid document ID.", "VALIDATION_ERROR", 400));
+
   const extensions = [".pdf", ".jpg", ".jpeg", ".png", ".svg"];
   let filePath = null;
   for (const ext of extensions) {
@@ -114,7 +152,7 @@ router.get("/:id/file", async (req, res) => {
       break;
     }
   }
-  if (!filePath) return res.status(404).json({ error: "Ficheiro não encontrado." });
+  if (!filePath) return next(new AppError("Ficheiro não encontrado.", "NOT_FOUND", 404));
   const ext = path.extname(filePath).toLowerCase();
   res.setHeader("Content-Type", MIME_MAP[ext] || "application/octet-stream");
   res.setHeader("Content-Disposition", "inline");
@@ -122,7 +160,7 @@ router.get("/:id/file", async (req, res) => {
 });
 
 // DELETE /api/documents/:id
-router.delete("/:id", async (req, res) => {
+router.delete("/:id", async (req, res, next) => {
   try {
     const docId = req.params.id;
 
@@ -159,8 +197,7 @@ router.delete("/:id", async (req, res) => {
 
     res.json({ message: "Documento eliminado." });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 

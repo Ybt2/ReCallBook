@@ -3,12 +3,14 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const { pool } = require("../db/init");
 const { appendLog, consoleLog } = require("../utils/logger");
+const { signToken } = require("../middleware/auth");
+const { AppError } = require("../middleware/errorHandler");
 
 // POST /api/auth/register
-router.post("/register", async (req, res) => {
+router.post("/register", async (req, res, next) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password) {
-    return res.status(400).json({ error: "username, email e password são obrigatórios." });
+    return next(new AppError("username, email e password são obrigatórios.", "VALIDATION_ERROR", 400));
   }
 
   try {
@@ -22,21 +24,25 @@ router.post("/register", async (req, res) => {
     await appendLog("Utilizadores", "ID", userId, "register", { username, email });
     consoleLog("auth", "register", { userId, username });
 
+    const token = signToken({ id: userId, username, email });
     res.status(201).json({
       message: "Utilizador criado!",
       user: { id: userId, username, email },
+      token,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Erro ao criar utilizador (Email ou User já existem?)" });
+    if (err.code === "ER_DUP_ENTRY") {
+      return next(new AppError("Email ou username já existem.", "DUPLICATE_USER", 409));
+    }
+    next(err);
   }
 });
 
 // POST /api/auth/login
-router.post("/login", async (req, res) => {
+router.post("/login", async (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    return res.status(400).json({ error: "email e password são obrigatórios." });
+    return next(new AppError("email e password são obrigatórios.", "VALIDATION_ERROR", 400));
   }
 
   try {
@@ -46,7 +52,7 @@ router.post("/login", async (req, res) => {
     );
 
     if (rows.length === 0) {
-      return res.status(401).json({ error: "Credenciais inválidas." });
+      return next(new AppError("Credenciais inválidas.", "INVALID_CREDENTIALS", 401));
     }
 
     const u = rows[0];
@@ -59,7 +65,7 @@ router.post("/login", async (req, res) => {
 
     if (!ok) {
       await appendLog("Utilizadores", "ID", u.ID, "login_failed", { email });
-      return res.status(401).json({ error: "Credenciais inválidas." });
+      return next(new AppError("Credenciais inválidas.", "INVALID_CREDENTIALS", 401));
     }
 
     // Lazy migration: upgrade plain text to bcrypt on successful login
@@ -72,10 +78,10 @@ router.post("/login", async (req, res) => {
     await appendLog("Utilizadores", "ID", u.ID, "login", {});
     consoleLog("auth", "login", { userId: u.ID });
 
-    res.json({ user: { id: u.ID, username: u.username, email: u.email } });
+    const token = signToken({ id: u.ID, username: u.username, email: u.email });
+    res.json({ user: { id: u.ID, username: u.username, email: u.email }, token });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Erro no login." });
+    next(err);
   }
 });
 

@@ -3,6 +3,7 @@ const router = express.Router();
 const { pool } = require("../db/init");
 const { chatWithAi } = require("../services/chatService");
 const { appendLog, consoleLog } = require("../utils/logger");
+const { AppError } = require("../middleware/errorHandler");
 
 const DEFAULT_MODEL = process.env.DEFAULT_MODEL || "qwen3:14b";
 
@@ -24,16 +25,24 @@ function timeToSecs(timeStr) {
   return str;
 }
 
-// GET /api/chat/messages?notebookId=
-router.get("/messages", async (req, res) => {
-  const { notebookId } = req.query;
-  if (!notebookId) return res.status(400).json({ error: "notebookId é obrigatório." });
+// GET /api/chat/messages?notebookId=&page=&limit=
+router.get("/messages", async (req, res, next) => {
+  const { notebookId, page, limit } = req.query;
+  if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
 
   try {
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 50));
+    const offset = (pageNum - 1) * pageSize;
+
+    const [[{ total }]] = await pool.query(
+      "SELECT COUNT(*) as total FROM Mensagens WHERE notebooks_ID = ?",
+      [notebookId]
+    );
     const [rows] = await pool.query(
       `SELECT ID as id, role, conteudo, modelo_ai, num_tokens, tempo_processamento, created_at
-       FROM Mensagens WHERE notebooks_ID = ? ORDER BY created_at ASC`,
-      [notebookId]
+       FROM Mensagens WHERE notebooks_ID = ? ORDER BY created_at ASC LIMIT ? OFFSET ?`,
+      [notebookId, pageSize, offset]
     );
 
     const messages = rows.map((m) => {
@@ -72,15 +81,14 @@ router.get("/messages", async (req, res) => {
       };
     });
 
-    res.json(messages);
+    res.json({ data: messages, pagination: { page: pageNum, limit: pageSize, total, totalPages: Math.ceil(total / pageSize) } });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
 // POST /api/chat/pergunta (non-streaming, kept for compatibility)
-router.post("/pergunta", async (req, res) => {
+router.post("/pergunta", async (req, res, next) => {
   const startTime = Date.now();
   const { notebookId, mensagem, docIds, model } = req.body;
 
@@ -134,8 +142,7 @@ router.post("/pergunta", async (req, res) => {
       processingTime: elapsedSecs.toFixed(2),
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ error: "Erro ao processar o chat." });
+    next(error);
   }
 });
 
@@ -145,7 +152,7 @@ router.post("/stream", async (req, res) => {
   const { notebookId, mensagem, docIds, model } = req.body;
 
   if (!notebookId || !mensagem) {
-    return res.status(400).json({ error: "notebookId e mensagem são obrigatórios." });
+    return res.status(400).json({ error: "notebookId e mensagem são obrigatórios.", code: "VALIDATION_ERROR", status: 400 });
   }
 
   res.setHeader("Content-Type", "text/event-stream");
@@ -240,7 +247,7 @@ router.post("/stream", async (req, res) => {
     res.end();
   } catch (error) {
     console.error("Stream error:", error);
-    try { send("error", { message: error.message }); } catch (_) {}
+    try { send("error", { message: "An error occurred while processing the stream." }); } catch (_) {}
     res.end();
   }
 });

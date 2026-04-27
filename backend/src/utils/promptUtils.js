@@ -111,7 +111,16 @@ async function generateAnswer(query, context, history, detectedLang, model) {
   const llm = pickLlm(model);
   const prompt = buildAnswerPrompt(query, context, history, detectedLang);
   const res = await llm.invoke(prompt);
-  return res.content.trim().replace(/^```[a-z]*\n?|```$/gi, "");
+  const text = res.content.trim().replace(/^```[a-z]*\n?|```$/gi, "");
+  const usage = res.response_metadata?.usage || res.usage_metadata || null;
+  return {
+    text,
+    usage: usage ? {
+      totalTokens: (usage.prompt_tokens || 0) + (usage.completion_tokens || 0) || usage.total_tokens || 0,
+      promptTokens: usage.prompt_tokens || usage.input_tokens || 0,
+      completionTokens: usage.completion_tokens || usage.output_tokens || 0,
+    } : null,
+  };
 }
 
 async function streamAnswer(query, context, history, detectedLang, model, onToken) {
@@ -119,6 +128,7 @@ async function streamAnswer(query, context, history, detectedLang, model, onToke
   const prompt = buildAnswerPrompt(query, context, history, detectedLang);
 
   let full = "";
+  let lastUsage = null;
   const stream = await llm.stream(prompt);
   for await (const chunk of stream) {
     const piece = chunk?.content || "";
@@ -126,8 +136,19 @@ async function streamAnswer(query, context, history, detectedLang, model, onToke
       full += piece;
       if (onToken) onToken(piece);
     }
+    if (chunk?.response_metadata?.usage || chunk?.usage_metadata) {
+      lastUsage = chunk.response_metadata?.usage || chunk.usage_metadata;
+    }
   }
-  return full.trim().replace(/^```[a-z]*\n?|```$/gi, "");
+  const text = full.trim().replace(/^```[a-z]*\n?|```$/gi, "");
+  return {
+    text,
+    usage: lastUsage ? {
+      totalTokens: (lastUsage.prompt_tokens || 0) + (lastUsage.completion_tokens || 0) || lastUsage.total_tokens || 0,
+      promptTokens: lastUsage.prompt_tokens || lastUsage.input_tokens || 0,
+      completionTokens: lastUsage.completion_tokens || lastUsage.output_tokens || 0,
+    } : null,
+  };
 }
 
 module.exports = {

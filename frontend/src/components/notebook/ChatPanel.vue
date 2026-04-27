@@ -52,6 +52,10 @@ watch(() => store.streaming?.stages?.length, scrollBottom);
 
 async function submit() {
   if (disabled.value) return;
+  if (store.selectedModel && models.value.length && !models.value.some((m) => m.name === store.selectedModel)) {
+    toasts.error(`Model "${store.selectedModel}" is not available. Please select a valid model.`);
+    return;
+  }
   const text = input.value;
   input.value = "";
   await store.sendMessage(text);

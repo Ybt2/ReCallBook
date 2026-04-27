@@ -1,5 +1,7 @@
 import api from "./http";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+
 function parseSseBlock(block) {
   const lines = block.split("\n");
   let event = "message";
@@ -12,9 +14,16 @@ function parseSseBlock(block) {
   try { return { event, data: JSON.parse(data) }; } catch { return { event, data }; }
 }
 
+function getAuthHeaders() {
+  const token = localStorage.getItem("recallbook.token");
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
 export const ChatAPI = {
-  messages: (notebookId) =>
-    api.get("/chat/messages", { params: { notebookId } }).then((r) => r.data),
+  messages: (notebookId, { page = 1, limit = 50 } = {}) =>
+    api.get("/chat/messages", { params: { notebookId, page, limit } }).then((r) => r.data),
 
   ask: (notebookId, mensagem, docIds, model) =>
     api
@@ -25,9 +34,9 @@ export const ChatAPI = {
     console.log("[ChatAPI.stream] Starting SSE request", payload);
     let res;
     try {
-      res = await fetch("/api/chat/stream", {
+      res = await fetch(`${API_BASE_URL}/chat/stream`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
         signal,
       });

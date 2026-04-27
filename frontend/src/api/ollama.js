@@ -1,5 +1,14 @@
 import api from "./http";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
+
+function getAuthHeaders() {
+  const token = localStorage.getItem("recallbook.token");
+  const headers = { "Content-Type": "application/json" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
+}
+
 export const OllamaAPI = {
   list: () => api.get("/ollama/models").then((r) => r.data.models || []),
 
@@ -11,9 +20,9 @@ export const OllamaAPI = {
    */
   pull: async (name, opts = {}) => {
     const { onProgress, onDone, onError, signal } = opts;
-    const res = await fetch("/api/ollama/pull", {
+    const res = await fetch(`${API_BASE_URL}/ollama/pull`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: getAuthHeaders(),
       body: JSON.stringify({ name }),
       signal,
     });
