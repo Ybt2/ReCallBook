@@ -7,6 +7,7 @@ const { initDB } = require("./db/init");
 const { initQdrant } = require("./db/qdrant");
 const { requireAuth } = require("./middleware/auth");
 const { errorHandler } = require("./middleware/errorHandler");
+const { apiLimiter, authLimiter } = require("./middleware/rateLimiter");
 
 const authRouter = require("./api/auth");
 const notebooksRouter = require("./api/notebooks");
@@ -14,6 +15,7 @@ const documentsRouter = require("./api/documents");
 const toolsRouter = require("./api/tools");
 const chatRouter = require("./api/chat");
 const ollamaRouter = require("./api/ollama");
+const healthRouter = require("./api/health");
 
 const app = express();
 app.use(express.json({ limit: "10mb" }));
@@ -28,7 +30,10 @@ app.use(cors({
   credentials: true,
 }));
 
-app.use("/api/auth", authRouter);
+app.use(apiLimiter);
+
+app.use("/api/health", healthRouter);
+app.use("/api/auth", authLimiter, authRouter);
 app.use("/api/notebooks", requireAuth, notebooksRouter);
 app.use("/api/documents", requireAuth, documentsRouter);
 app.use("/api/tools", requireAuth, toolsRouter);

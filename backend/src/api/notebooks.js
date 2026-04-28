@@ -6,12 +6,12 @@ const { pool } = require("../db/init");
 const { client: qdrantClient, COLLECTION_NAME } = require("../db/qdrant");
 const { appendLog, consoleLog } = require("../utils/logger");
 const { AppError } = require("../middleware/errorHandler");
+const { requireNotebookOwner } = require("../middleware/ownership");
 
 const UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads");
 
 router.get("/", async (req, res, next) => {
-  const { userId } = req.query;
-  if (!userId) return next(new AppError("userId é obrigatório.", "VALIDATION_ERROR", 400));
+  const userId = req.user.id;
 
   try {
     const [rows] = await pool.query(
@@ -28,7 +28,7 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", requireNotebookOwner, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       "SELECT ID as id, titulo, utilizadores_ID as userId, created_at, updated_at FROM NoteBooks WHERE ID = ? LIMIT 1",
@@ -42,9 +42,10 @@ router.get("/:id", async (req, res, next) => {
 });
 
 router.post("/", async (req, res, next) => {
-  const { titulo, userId } = req.body;
-  if (!titulo || !userId) {
-    return next(new AppError("titulo e userId são obrigatórios.", "VALIDATION_ERROR", 400));
+  const { titulo } = req.body;
+  const userId = req.user.id;
+  if (!titulo) {
+    return next(new AppError("titulo é obrigatório.", "VALIDATION_ERROR", 400));
   }
 
   try {
@@ -67,7 +68,7 @@ router.post("/", async (req, res, next) => {
   }
 });
 
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireNotebookOwner, async (req, res, next) => {
   const notebookId = req.params.id;
   try {
     const [fontes] = await pool.query(

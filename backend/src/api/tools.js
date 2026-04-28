@@ -7,6 +7,7 @@ const { generateFlashcardsAction } = require("../services/tools/flashcardTool");
 const { appendLog, consoleLog } = require("../utils/logger");
 const { buildNotebookFilter } = require("../utils/validation");
 const { AppError } = require("../middleware/errorHandler");
+const { requireNotebookOwner, requireAssetOwner } = require("../middleware/ownership");
 
 async function getContext(notebookId, docIds, query) {
   const vectorStore = await getVectorStore();
@@ -31,6 +32,10 @@ router.get("/", async (req, res, next) => {
   const { notebookId } = req.query;
   if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
 
+  const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
+  if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+  if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
+
   try {
     const [rows] = await pool.query(
       `SELECT ID as id, asset_type as type, data, created_at
@@ -53,7 +58,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // GET /api/tools/:id
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", requireAssetOwner, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       "SELECT ID as id, asset_type as type, data, created_at FROM Notebook_assets WHERE ID = ? LIMIT 1",
@@ -69,7 +74,7 @@ router.get("/:id", async (req, res, next) => {
 });
 
 // DELETE /api/tools/:id
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireAssetOwner, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       "SELECT notebook_ID FROM Notebook_assets WHERE ID = ?",
@@ -91,6 +96,11 @@ router.delete("/:id", async (req, res, next) => {
 router.post("/quiz", async (req, res, next) => {
   try {
     const { notebookId, docIds, prompt, numQuestions = 5, difficulty = "medium" } = req.body;
+
+    const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
+    if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+    if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
+
     const query = prompt?.trim() || "Extract main concepts for a quiz";
 
     const context = await getContext(notebookId, docIds, query);
@@ -116,6 +126,11 @@ router.post("/quiz", async (req, res, next) => {
 router.post("/flashcards", async (req, res, next) => {
   try {
     const { notebookId, docIds, prompt, numCards = 10, difficulty = "medium" } = req.body;
+
+    const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
+    if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+    if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
+
     const query = prompt?.trim() || "Key terms for flashcards";
 
     const context = await getContext(notebookId, docIds, query);

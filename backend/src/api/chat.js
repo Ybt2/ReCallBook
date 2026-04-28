@@ -4,6 +4,7 @@ const { pool } = require("../db/init");
 const { chatWithAi } = require("../services/chatService");
 const { appendLog, consoleLog } = require("../utils/logger");
 const { AppError } = require("../middleware/errorHandler");
+const { requireNotebookOwner } = require("../middleware/ownership");
 
 const DEFAULT_MODEL = process.env.DEFAULT_MODEL || "qwen3:14b";
 
@@ -29,6 +30,10 @@ function timeToSecs(timeStr) {
 router.get("/messages", async (req, res, next) => {
   const { notebookId, page, limit } = req.query;
   if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
+
+  const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
+  if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+  if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
   try {
     const pageNum = Math.max(1, parseInt(page) || 1);
@@ -92,6 +97,10 @@ router.post("/pergunta", async (req, res, next) => {
   const startTime = Date.now();
   const { notebookId, mensagem, docIds, model } = req.body;
 
+  const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
+  if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+  if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
+
   try {
     const [rows] = await pool.query(
       "SELECT role, conteudo FROM Mensagens WHERE notebooks_ID = ? ORDER BY created_at DESC LIMIT 6",
@@ -154,6 +163,10 @@ router.post("/stream", async (req, res) => {
   if (!notebookId || !mensagem) {
     return res.status(400).json({ error: "notebookId e mensagem são obrigatórios.", code: "VALIDATION_ERROR", status: 400 });
   }
+
+  const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
+  if (nbRows.length === 0) return res.status(404).json({ error: "Notebook não encontrado.", code: "NOT_FOUND", status: 404 });
+  if (nbRows[0].utilizadores_ID !== req.user.id) return res.status(403).json({ error: "Access denied.", code: "FORBIDDEN", status: 403 });
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");

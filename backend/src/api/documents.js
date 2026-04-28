@@ -4,6 +4,7 @@ const { parsePDF } = require("../utils/readers/pdfParser");
 const { parseImage, isImageFile, getImageType } = require("../services/vision");
 const { appendLog, consoleLog } = require("../utils/logger");
 const { AppError } = require("../middleware/errorHandler");
+const { requireNotebookOwner, requireDocumentOwner } = require("../middleware/ownership");
 
 const express = require("express");
 const multer = require("multer");
@@ -63,6 +64,10 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
     if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
     if (!req.file) return next(new AppError("Ficheiro em falta.", "VALIDATION_ERROR", 400));
 
+    const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
+    if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+    if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
+
     const { path: tmpPath, originalname } = req.file;
     const safeName = sanitizeFilename(originalname);
     const docId = uuidv4();
@@ -118,6 +123,10 @@ router.get("/", async (req, res, next) => {
   const { notebookId, page, limit } = req.query;
   if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
 
+  const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
+  if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+  if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
+
   try {
     const pageNum = Math.max(1, parseInt(page) || 1);
     const pageSize = Math.min(100, Math.max(1, parseInt(limit) || 50));
@@ -139,7 +148,7 @@ router.get("/", async (req, res, next) => {
 });
 
 // GET /api/documents/:id/file
-router.get("/:id/file", async (req, res, next) => {
+router.get("/:id/file", requireDocumentOwner, async (req, res, next) => {
   const docId = req.params.id;
   if (!/^[a-f0-9\-]{36}$/i.test(docId)) return next(new AppError("Invalid document ID.", "VALIDATION_ERROR", 400));
 
@@ -160,7 +169,7 @@ router.get("/:id/file", async (req, res, next) => {
 });
 
 // DELETE /api/documents/:id
-router.delete("/:id", async (req, res, next) => {
+router.delete("/:id", requireDocumentOwner, async (req, res, next) => {
   try {
     const docId = req.params.id;
 

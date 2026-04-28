@@ -25,6 +25,7 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.4.1",
     "franc": "^6.2.0",
     "js-tiktoken": "^1.0.21",
     "jsonwebtoken": "^9.0.3",
@@ -46,11 +47,26 @@
   },
   "jest": {
     "testEnvironment": "node",
+    "setupFiles": ["./tests/setup.js"],
     "transformIgnorePatterns": [
       "node_modules/(?!(uuid|franc)/)"
     ],
     "transform": {
-      "\\.[jt]sx?$": ["babel-jest", { "presets": [["@babel/preset-env", { "targets": { "node": "current" } }]] }]
+      "\\.[jt]sx?$": [
+        "babel-jest",
+        {
+          "presets": [
+            [
+              "@babel/preset-env",
+              {
+                "targets": {
+                  "node": "current"
+                }
+              }
+            ]
+          ]
+        }
+      ]
     }
   }
 }

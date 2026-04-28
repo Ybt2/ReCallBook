@@ -8,7 +8,8 @@ jest.mock("../src/db/init", () => ({
 jest.mock("../src/db/qdrant", () => ({
   initQdrant: jest.fn(),
   getQdrantClient: jest.fn(() => ({})),
-  client: { delete: jest.fn(), scroll: jest.fn() },
+  getVectorStore: jest.fn(),
+  client: { delete: jest.fn(), scroll: jest.fn(), getCollections: jest.fn() },
   COLLECTION_NAME: "test_collection",
 }));
 jest.mock("../src/services/cross_encoder", () => ({
@@ -24,8 +25,7 @@ jest.mock("../src/utils/logger", () => ({
   entry: jest.fn(),
 }));
 jest.mock("../src/services/chatService", () => ({
-  generateAnswer: jest.fn(),
-  streamAnswer: jest.fn(),
+  chatWithAi: jest.fn(),
 }));
 jest.mock("../src/utils/promptUtils", () => ({
   generateAnswer: jest.fn(),
@@ -52,6 +52,7 @@ jest.mock("uuid", () => ({ v4: jest.fn(() => "00000000-0000-0000-0000-0000000000
 const app = require("../src/app");
 
 const validToken = signToken({ id: 1, username: "tester", email: "t@t.com" });
+const otherToken = signToken({ id: 2, username: "other", email: "o@t.com" });
 
 describe("Auth required on protected routes", () => {
   const protectedRoutes = [
@@ -127,16 +128,68 @@ describe("GET /api/notebooks", () => {
       { id: "nb-1", titulo: "Test Notebook", created_at: "2025-01-01" },
     ]]);
     const res = await request(app)
-      .get("/api/notebooks?userId=1")
+      .get("/api/notebooks")
       .set("Authorization", `Bearer ${validToken}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body)).toBe(true);
   });
+});
 
-  it("returns 400 without userId", async () => {
+describe("IDOR - Ownership checks", () => {
+  const { pool } = require("../src/db/init");
+
+  beforeEach(() => {
+    pool.query.mockReset();
+  });
+
+  it("GET /api/notebooks/:id returns 403 for non-owner", async () => {
+    pool.query.mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
     const res = await request(app)
-      .get("/api/notebooks")
+      .get("/api/notebooks/1")
       .set("Authorization", `Bearer ${validToken}`);
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(403);
+    expect(res.body.code).toBe("FORBIDDEN");
+  });
+
+  it("GET /api/notebooks/:id returns 200 for owner", async () => {
+    pool.query
+      .mockResolvedValueOnce([[{ utilizadores_ID: 1 }]])
+      .mockResolvedValueOnce([[{ id: 1, titulo: "My NB", utilizadores_ID: 1, created_at: "2025-01-01", updated_at: null }]]);
+    const res = await request(app)
+      .get("/api/notebooks/1")
+      .set("Authorization", `Bearer ${validToken}`);
+    expect(res.status).toBe(200);
+  });
+
+  it("DELETE /api/notebooks/:id returns 403 for non-owner", async () => {
+    pool.query.mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
+    const res = await request(app)
+      .delete("/api/notebooks/1")
+      .set("Authorization", `Bearer ${validToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("GET /api/chat/messages returns 403 for non-owner notebook", async () => {
+    pool.query.mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
+    const res = await request(app)
+      .get("/api/chat/messages?notebookId=1")
+      .set("Authorization", `Bearer ${validToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("GET /api/tools returns 403 for non-owner notebook", async () => {
+    pool.query.mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
+    const res = await request(app)
+      .get("/api/tools?notebookId=1")
+      .set("Authorization", `Bearer ${validToken}`);
+    expect(res.status).toBe(403);
+  });
+
+  it("GET /api/documents returns 403 for non-owner notebook", async () => {
+    pool.query.mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
+    const res = await request(app)
+      .get("/api/documents?notebookId=1")
+      .set("Authorization", `Bearer ${validToken}`);
+    expect(res.status).toBe(403);
   });
 });
