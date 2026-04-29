@@ -11,7 +11,7 @@ const date = computed(() => {
 const colors = [
   "from-brand-400 to-brand-600",
   "from-emerald-400 to-emerald-600",
-  "from-amber-400 to-orange-500",
+  "from-sky-400 to-blue-500",
   "from-pink-400 to-rose-500",
   "from-purple-400 to-indigo-500",
   "from-sky-400 to-cyan-500",

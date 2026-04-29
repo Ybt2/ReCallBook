@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, computed } from "vue";
+import { onMounted, ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useNotebooksStore } from "../stores/notebooks";
 import { useToastStore } from "../stores/toast";
@@ -14,12 +14,21 @@ const toasts = useToastStore();
 const router = useRouter();
 
 const search = ref("");
+const debouncedSearch = ref("");
 const showCreate = ref(false);
 const confirmDelete = ref(null);
 
+let debounceTimer = null;
+watch(search, (val) => {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    debouncedSearch.value = val;
+  }, 300);
+});
+
 const filtered = computed(() => {
-  if (!search.value.trim()) return store.items;
-  const q = search.value.toLowerCase();
+  if (!debouncedSearch.value.trim()) return store.items;
+  const q = debouncedSearch.value.toLowerCase();
   return store.items.filter((n) => n.titulo.toLowerCase().includes(q));
 });
 

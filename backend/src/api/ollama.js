@@ -26,7 +26,7 @@ router.get("/models", async (req, res) => {
     res.json({ models });
   } catch (err) {
     console.error("[ollama] list failed:", err.message);
-    res.status(502).json({ error: `Ollama indisponível: ${err.message}` });
+    res.status(502).json({ error: `Ollama unavailable: ${err.message}` });
   }
 });
 
@@ -34,7 +34,7 @@ router.get("/models", async (req, res) => {
 // body: { name: "llama3.2:3b" }
 router.post("/pull", async (req, res) => {
   const { name } = req.body;
-  if (!name) return res.status(400).json({ error: "name é obrigatório." });
+  if (!name) return res.status(400).json({ error: "name is required." });
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");

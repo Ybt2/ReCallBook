@@ -13,6 +13,7 @@ function isImg(d) { return IMAGE_TYPES.includes(d.type); }
 
 const fileInput = ref(null);
 const uploading = ref(false);
+const uploadProgress = ref(0);
 
 const allSelected = computed(
   () =>
@@ -26,15 +27,21 @@ async function onUpload(e) {
   if (!picked.length) return;
 
   uploading.value = true;
+  uploadProgress.value = 0;
   try {
-    for (const f of picked) {
-      await store.uploadDocument(f);
+    for (let i = 0; i < picked.length; i++) {
+      await store.uploadDocument(picked[i], (event) => {
+        const fileBase = (i / picked.length) * 100;
+        const filePart = (event.loaded / (event.total || 1)) * (100 / picked.length);
+        uploadProgress.value = Math.round(fileBase + filePart);
+      });
     }
     toasts.success(`${picked.length} file(s) uploaded`);
   } catch (err) {
     toasts.error(err.message);
   } finally {
     uploading.value = false;
+    uploadProgress.value = 0;
   }
 }
 
@@ -74,6 +81,16 @@ async function remove(d) {
         class="hidden"
         @change="onUpload"
       />
+    </div>
+
+    <div v-if="uploading" class="px-4 py-1 border-b border-neutral-100 shrink-0">
+      <div class="w-full bg-neutral-200 rounded-full h-1.5">
+        <div
+          class="bg-brand-600 h-1.5 rounded-full transition-all duration-200"
+          :style="{ width: uploadProgress + '%' }"
+        />
+      </div>
+      <p class="text-[10px] text-neutral-500 mt-0.5">{{ uploadProgress }}%</p>
     </div>
 
     <label class="px-4 py-2 border-b border-neutral-100 flex items-center gap-2 text-xs shrink-0">

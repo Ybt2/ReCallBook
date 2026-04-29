@@ -34,7 +34,7 @@ router.get("/:id", requireNotebookOwner, async (req, res, next) => {
       "SELECT ID as id, titulo, utilizadores_ID as userId, created_at, updated_at FROM NoteBooks WHERE ID = ? LIMIT 1",
       [req.params.id]
     );
-    if (rows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+    if (rows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
     res.json(rows[0]);
   } catch (err) {
     next(err);
@@ -45,7 +45,7 @@ router.post("/", async (req, res, next) => {
   const { titulo } = req.body;
   const userId = req.user.id;
   if (!titulo) {
-    return next(new AppError("titulo é obrigatório.", "VALIDATION_ERROR", 400));
+    return next(new AppError("titulo is required.", "VALIDATION_ERROR", 400));
   }
 
   try {
@@ -60,7 +60,7 @@ router.post("/", async (req, res, next) => {
     consoleLog("notebooks", "created", { notebookId, titulo });
 
     res.status(201).json({
-      message: "Notebook criado!",
+      message: "Notebook created!",
       notebook: { id: notebookId, titulo, userId },
     });
   } catch (err) {
@@ -87,10 +87,15 @@ router.delete("/:id", requireNotebookOwner, async (req, res, next) => {
     }
 
     for (const f of fontes) {
-      const filePath = path.join(UPLOAD_DIR, `${f.ID}.pdf`);
-      if (fs.existsSync(filePath)) {
-        try { fs.unlinkSync(filePath); } catch (_) {}
-      }
+      const prefix = path.join(UPLOAD_DIR, f.ID);
+      try {
+        const dirEntries = fs.readdirSync(UPLOAD_DIR);
+        for (const entry of dirEntries) {
+          if (entry.startsWith(f.ID)) {
+            try { fs.unlinkSync(path.join(UPLOAD_DIR, entry)); } catch (_) {}
+          }
+        }
+      } catch (_) {}
     }
 
     const [r] = await pool.query("DELETE FROM NoteBooks WHERE ID = ?", [notebookId]);
@@ -102,7 +107,7 @@ router.delete("/:id", requireNotebookOwner, async (req, res, next) => {
     });
 
     res.json({
-      message: "Notebook eliminado.",
+      message: "Notebook deleted.",
       fontesRemoved: fontes.length,
     });
   } catch (err) {

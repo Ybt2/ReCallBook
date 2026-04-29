@@ -29,10 +29,10 @@ function timeToSecs(timeStr) {
 // GET /api/chat/messages?notebookId=&page=&limit=
 router.get("/messages", async (req, res, next) => {
   const { notebookId, page, limit } = req.query;
-  if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
+  if (!notebookId) return next(new AppError("notebookId is required.", "VALIDATION_ERROR", 400));
 
   const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
-  if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+  if (nbRows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
   if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
   try {
@@ -98,7 +98,7 @@ router.post("/pergunta", async (req, res, next) => {
   const { notebookId, mensagem, docIds, model } = req.body;
 
   const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
-  if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+  if (nbRows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
   if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
   try {
@@ -115,6 +115,7 @@ router.post("/pergunta", async (req, res, next) => {
     const elapsedSecs = (Date.now() - startTime) / 1000;
     const tempoProc = secsToTime(elapsedSecs);
     const usedModel = aiResponse.model || model || DEFAULT_MODEL;
+    const totalTokens = aiResponse.usage?.totalTokens ?? 0;
 
     await pool.query(
       "INSERT INTO Mensagens (notebooks_ID, role, conteudo) VALUES (?, 'utilizador', ?)",
@@ -131,14 +132,14 @@ router.post("/pergunta", async (req, res, next) => {
         usedModel,
         "SUCCESS",
         tempoProc,
-        aiResponse.usage.totalTokens,
+        totalTokens,
       ]
     );
 
     await appendLog("NoteBooks", "ID", notebookId, "chat_answered", {
       messageId: result.insertId,
       model: usedModel,
-      tokens: aiResponse.usage.totalTokens,
+      tokens: totalTokens,
     });
 
     res.json({
@@ -147,7 +148,7 @@ router.post("/pergunta", async (req, res, next) => {
       content: aiResponse.texto_final,
       sources: aiResponse.fontes,
       model: usedModel,
-      tokens: aiResponse.usage.totalTokens,
+      tokens: totalTokens,
       processingTime: elapsedSecs.toFixed(2),
     });
   } catch (error) {
@@ -161,11 +162,11 @@ router.post("/stream", async (req, res) => {
   const { notebookId, mensagem, docIds, model } = req.body;
 
   if (!notebookId || !mensagem) {
-    return res.status(400).json({ error: "notebookId e mensagem são obrigatórios.", code: "VALIDATION_ERROR", status: 400 });
+    return res.status(400).json({ error: "notebookId and mensagem are required.", code: "VALIDATION_ERROR", status: 400 });
   }
 
   const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
-  if (nbRows.length === 0) return res.status(404).json({ error: "Notebook não encontrado.", code: "NOT_FOUND", status: 404 });
+  if (nbRows.length === 0) return res.status(404).json({ error: "Notebook not found.", code: "NOT_FOUND", status: 404 });
   if (nbRows[0].utilizadores_ID !== req.user.id) return res.status(403).json({ error: "Access denied.", code: "FORBIDDEN", status: 403 });
 
   res.setHeader("Content-Type", "text/event-stream");
@@ -220,6 +221,7 @@ router.post("/stream", async (req, res) => {
     const elapsedSecs = (Date.now() - startTime) / 1000;
     const tempoProc = secsToTime(elapsedSecs);
     const usedModel = aiResponse.model || model || DEFAULT_MODEL;
+    const totalTokens = aiResponse.usage?.totalTokens ?? 0;
 
     const [result] = await pool.query(
       `INSERT INTO Mensagens
@@ -231,21 +233,21 @@ router.post("/stream", async (req, res) => {
         usedModel,
         "SUCCESS",
         tempoProc,
-        aiResponse.usage.totalTokens,
+        totalTokens,
       ]
     );
 
     await appendLog("NoteBooks", "ID", notebookId, "chat_answered", {
       messageId: result.insertId,
       model: usedModel,
-      tokens: aiResponse.usage.totalTokens,
+      tokens: totalTokens,
       processingTime: elapsedSecs.toFixed(2),
     });
 
     consoleLog("chat", "stream_done", {
       notebookId,
       model: usedModel,
-      tokens: aiResponse.usage.totalTokens,
+      tokens: totalTokens,
       time: elapsedSecs.toFixed(2),
     });
 
@@ -254,7 +256,7 @@ router.post("/stream", async (req, res) => {
       content: aiResponse.texto_final,
       sources: aiResponse.fontes,
       model: usedModel,
-      tokens: aiResponse.usage.totalTokens,
+      tokens: totalTokens,
       processingTime: elapsedSecs.toFixed(2),
     });
     res.end();

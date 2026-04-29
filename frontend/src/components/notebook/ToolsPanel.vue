@@ -49,12 +49,12 @@ async function handleRemove(id) {
           v-for="a in store.assets"
           :key="a.id"
           class="group card !shadow-none cursor-pointer p-3 flex items-start gap-3 transition-all"
-          :class="a.type === 'quiz' ? 'hover:border-amber-300' : 'hover:border-emerald-300'"
+          :class="a.type === 'quiz' ? 'hover:border-brand-300' : 'hover:border-emerald-300'"
           @click="emit('open-asset', a)"
         >
           <div
             class="w-9 h-9 rounded-lg shrink-0 grid place-items-center text-xs font-semibold"
-            :class="a.type === 'quiz' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'"
+            :class="a.type === 'quiz' ? 'bg-brand-100 text-brand-700' : 'bg-emerald-100 text-emerald-700'"
           >
             {{ a.type === 'quiz' ? 'Q' : 'F' }}
           </div>

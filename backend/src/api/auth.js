@@ -10,7 +10,7 @@ const { AppError } = require("../middleware/errorHandler");
 router.post("/register", async (req, res, next) => {
   const { username, email, password } = req.body;
   if (!username || !email || !password) {
-    return next(new AppError("username, email e password são obrigatórios.", "VALIDATION_ERROR", 400));
+    return next(new AppError("username, email and password are required.", "VALIDATION_ERROR", 400));
   }
 
   try {
@@ -26,13 +26,13 @@ router.post("/register", async (req, res, next) => {
 
     const token = signToken({ id: userId, username, email });
     res.status(201).json({
-      message: "Utilizador criado!",
+      message: "User created!",
       user: { id: userId, username, email },
       token,
     });
   } catch (err) {
     if (err.code === "ER_DUP_ENTRY") {
-      return next(new AppError("Email ou username já existem.", "DUPLICATE_USER", 409));
+      return next(new AppError("Email or username already exists.", "DUPLICATE_USER", 409));
     }
     next(err);
   }
@@ -42,7 +42,7 @@ router.post("/register", async (req, res, next) => {
 router.post("/login", async (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    return next(new AppError("email e password são obrigatórios.", "VALIDATION_ERROR", 400));
+    return next(new AppError("Email and password are required.", "VALIDATION_ERROR", 400));
   }
 
   try {
@@ -52,26 +52,22 @@ router.post("/login", async (req, res, next) => {
     );
 
     if (rows.length === 0) {
-      return next(new AppError("Credenciais inválidas.", "INVALID_CREDENTIALS", 401));
+      return next(new AppError("Invalid credentials.", "INVALID_CREDENTIALS", 401));
     }
 
     const u = rows[0];
-    // Back-compat: rows with plain text pw still work (old users)
     const stored = u.password || "";
     const looksHashed = stored.startsWith("$2a$") || stored.startsWith("$2b$") || stored.startsWith("$2y$");
-    const ok = looksHashed
-      ? await bcrypt.compare(password, stored)
-      : stored === password;
+
+    if (!looksHashed) {
+      return next(new AppError("Password must be reset. Please contact support.", "PASSWORD_RESET_REQUIRED", 403));
+    }
+
+    const ok = await bcrypt.compare(password, stored);
 
     if (!ok) {
       await appendLog("Utilizadores", "ID", u.ID, "login_failed", { email });
-      return next(new AppError("Credenciais inválidas.", "INVALID_CREDENTIALS", 401));
-    }
-
-    // Lazy migration: upgrade plain text to bcrypt on successful login
-    if (!looksHashed) {
-      const hashed = await bcrypt.hash(password, 10);
-      await pool.query("UPDATE Utilizadores SET password = ? WHERE ID = ?", [hashed, u.ID]);
+      return next(new AppError("Invalid credentials.", "INVALID_CREDENTIALS", 401));
     }
 
     await pool.query("UPDATE Utilizadores SET accessed_at = CURRENT_TIMESTAMP WHERE ID = ?", [u.ID]);

@@ -13,7 +13,7 @@ function buildNotebookFilter(notebookId, docIds) {
   const must = [{ key: "metadata.notebookId", match: { value: String(notebookId) } }];
   const sanitized = sanitizeDocIds(docIds);
   if (sanitized) {
-    return { must, should: sanitized.map(id => ({ key: "metadata.docId", match: { value: id } })) };
+    must.push({ key: "metadata.docId", match: { any: sanitized } });
   }
   return { must };
 }

@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
 require('dotenv').config();
 const { initCross_encoder } = require('./services/cross_encoder.js');
 
@@ -18,13 +19,19 @@ const ollamaRouter = require("./api/ollama");
 const healthRouter = require("./api/health");
 
 const app = express();
+app.use(helmet());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "http://localhost:5173").split(",").map(s => s.trim());
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
 app.use(cors({
   origin(origin, cb) {
-    if (!origin || ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
+    if (!origin) {
+      if (IS_PRODUCTION) return cb(new Error("Not allowed by CORS"));
+      return cb(null, true);
+    }
+    if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
     cb(new Error("Not allowed by CORS"));
   },
   credentials: true,

@@ -27,6 +27,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
     "franc": "^6.2.0",
+    "helmet": "^8.1.0",
     "js-tiktoken": "^1.0.21",
     "jsonwebtoken": "^9.0.3",
     "mammoth": "^1.12.0",
@@ -42,12 +43,15 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.29.2",
     "jest": "^30.3.0",
     "supertest": "^7.2.2"
   },
   "jest": {
     "testEnvironment": "node",
-    "setupFiles": ["./tests/setup.js"],
+    "setupFiles": [
+      "./tests/setup.js"
+    ],
     "transformIgnorePatterns": [
       "node_modules/(?!(uuid|franc)/)"
     ],

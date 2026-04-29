@@ -44,13 +44,12 @@ describe("buildNotebookFilter", () => {
 
   it("builds filter with notebookId and valid docIds", () => {
     const filter = buildNotebookFilter("nb-1", ["123", "456"]);
-    expect(filter.must).toHaveLength(1);
-    expect(filter.should).toHaveLength(2);
-    expect(filter.should[0]).toEqual({ key: "metadata.docId", match: { value: "123" } });
+    expect(filter.must).toHaveLength(2);
+    expect(filter.must[1]).toEqual({ key: "metadata.docId", match: { any: ["123", "456"] } });
   });
 
-  it("ignores invalid docIds and omits should clause", () => {
+  it("ignores invalid docIds and omits docId clause", () => {
     const filter = buildNotebookFilter("nb-1", ["<script>"]);
-    expect(filter.should).toBeUndefined();
+    expect(filter.must).toHaveLength(1);
   });
 });

@@ -61,11 +61,11 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
   let storedPath = null;
   try {
     const { notebookId } = req.body;
-    if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
-    if (!req.file) return next(new AppError("Ficheiro em falta.", "VALIDATION_ERROR", 400));
+    if (!notebookId) return next(new AppError("notebookId is required.", "VALIDATION_ERROR", 400));
+    if (!req.file) return next(new AppError("File is missing.", "VALIDATION_ERROR", 400));
 
     const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
-    if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+    if (nbRows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
     if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
     const { path: tmpPath, originalname } = req.file;
@@ -76,7 +76,8 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
     const fileType = isImage ? getImageType(safeName) : "pdf";
 
     storedPath = path.join(UPLOAD_DIR, `${docId}${ext}`);
-    fs.renameSync(tmpPath, storedPath);
+    fs.copyFileSync(tmpPath, storedPath);
+    fs.unlinkSync(tmpPath);
 
     let chunks, summary;
     if (isImage) {
@@ -121,10 +122,10 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
 // GET /api/documents?notebookId=
 router.get("/", async (req, res, next) => {
   const { notebookId, page, limit } = req.query;
-  if (!notebookId) return next(new AppError("notebookId é obrigatório.", "VALIDATION_ERROR", 400));
+  if (!notebookId) return next(new AppError("notebookId is required.", "VALIDATION_ERROR", 400));
 
   const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
-  if (nbRows.length === 0) return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+  if (nbRows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
   if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
   try {
@@ -161,7 +162,7 @@ router.get("/:id/file", requireDocumentOwner, async (req, res, next) => {
       break;
     }
   }
-  if (!filePath) return next(new AppError("Ficheiro não encontrado.", "NOT_FOUND", 404));
+  if (!filePath) return next(new AppError("File not found.", "NOT_FOUND", 404));
   const ext = path.extname(filePath).toLowerCase();
   res.setHeader("Content-Type", MIME_MAP[ext] || "application/octet-stream");
   res.setHeader("Content-Disposition", "inline");
@@ -204,7 +205,7 @@ router.delete("/:id", requireDocumentOwner, async (req, res, next) => {
     }
     consoleLog("documents", "deleted", { docId });
 
-    res.json({ message: "Documento eliminado." });
+    res.json({ message: "Document deleted." });
   } catch (err) {
     next(err);
   }

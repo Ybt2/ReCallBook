@@ -66,7 +66,7 @@ async function initDB() {
                 updated_at TIMESTAMP NULL ON UPDATE CURRENT_TIMESTAMP,
                 LOGS TEXT NULL,
                 tempo_processamento TIME,
-                num_tokens INT,
+                num_tokens INT DEFAULT 0,
                 FOREIGN KEY (notebooks_ID) REFERENCES NoteBooks(ID) ON DELETE CASCADE
             )`,
             `CREATE TABLE IF NOT EXISTS Notebook_assets (

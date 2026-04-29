@@ -1,4 +1,3 @@
-// cross_encoder.js
 const { env, AutoTokenizer, XLMRobertaModel } = require('@huggingface/transformers');
 
 env.cacheDir = './models';
@@ -6,54 +5,65 @@ env.cacheDir = './models';
 const model_id = 'jinaai/jina-reranker-v2-base-multilingual';
 let model = null;
 let tokenizer = null;
+let unloadTimer = null;
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+
+function scheduleUnload() {
+  if (unloadTimer) clearTimeout(unloadTimer);
+  unloadTimer = setTimeout(() => {
+    if (model) {
+      model.dispose?.();
+      model = null;
+    }
+    tokenizer = null;
+    unloadTimer = null;
+    console.log("[cross_encoder] Model unloaded from RAM after idle timeout");
+  }, IDLE_TIMEOUT_MS);
+}
 
 async function initCross_encoder() {
     if (!model || !tokenizer) {
-        console.log("A carregar tokenizer...");
+        console.log("[cross_encoder] Loading tokenizer...");
         tokenizer = await AutoTokenizer.from_pretrained(model_id);
-        console.log("Tokenizer OK. A carregar modelo...");
+        console.log("[cross_encoder] Tokenizer OK. Loading model...");
         model = await XLMRobertaModel.from_pretrained(model_id, { dtype: 'fp16' });
-        console.log("✅ Modelo de reranking pronto.");
+        console.log("[cross_encoder] Reranking model ready.");
     }
+    scheduleUnload();
 }
 
-async function rerank(query, documents, top_k = 6) { // top_k ajustado para 6
+async function rerank(query, documents, top_k = 6) {
     if (!documents || documents.length === 0) return [];
     
     try {
         await initCross_encoder();
-        console.log(`--- Iniciando Rerank de ${documents.length} documentos ---`);
+        console.log(`[cross_encoder] Reranking ${documents.length} documents`);
 
         const textDocs = documents.map(d => d.pageContent);
 
-        // Tokenização em Batch
         const inputs = tokenizer(
             new Array(textDocs.length).fill(String(query)),
             { text_pair: textDocs, padding: true, truncation: true }
         );
 
-        // Inferência
         const { logits } = await model(inputs);
 
-        // Normalização e Mapeamento
         const scoredDocs = logits.sigmoid().tolist()
             .map(([score], i) => {
                 const doc = documents[i];
-                // Log exatamente igual ao segundo código
-                console.log(`Doc ${i + 1} [${doc.metadata?.source_ref ?? 'N/A'}]: Score ${score.toFixed(4)}`);
+                console.log(`[cross_encoder] Doc ${i + 1} [${doc.metadata?.source_ref ?? 'N/A'}]: Score ${score.toFixed(4)}`);
                 return { doc, score };
             });
 
-        // Ordenação
         const sorted = scoredDocs.sort((a, b) => b.score - a.score);
         
-        console.log(`Rerank concluído. Melhor score: ${sorted[0]?.score.toFixed(4)}`);
+        console.log(`[cross_encoder] Rerank done. Best score: ${sorted[0]?.score.toFixed(4)}`);
 
-        // Retorno igual ao segundo código
+        scheduleUnload();
         return sorted.slice(0, top_k).map(res => res.doc);
         
     } catch (error) {
-        console.error("Erro no Reranker:", error);
+        console.error("[cross_encoder] Reranker error:", error);
         return documents.slice(0, top_k);
     }
 }

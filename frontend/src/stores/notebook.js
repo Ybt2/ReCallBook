@@ -190,20 +190,31 @@ export const useNotebookStore = defineStore("notebook", {
             },
             onError: (m) => {
               console.error("[Store.onError]", m);
+              this.messages = this.messages.filter(
+                (msg) => msg.id !== optimistic.id
+              );
               this.messages = [
                 ...this.messages,
                 {
                   id: `err-${Date.now()}`,
                   role: "assistant",
-                  content: `⚠️ ${m}`,
+                  content: `Error: ${m}`,
                   sources: [],
                 },
               ];
               this.streaming = null;
+              this.isGenerating = false;
             },
           }
         );
         console.log("[Store.sendMessage] stream call completed");
+      } catch (e) {
+        this.messages = this.messages.filter(
+          (msg) => !String(msg.id).startsWith("tmp-")
+        );
+        this.streaming = null;
+        this.isGenerating = false;
+        this.error = e.message || "Stream failed";
       } finally {
         this.loading.chat = false;
       }
