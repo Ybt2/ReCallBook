@@ -69,7 +69,7 @@ function openSource(src) {
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
+  <div class="h-full flex flex-col bg-oc-dark">
     <AppHeader
       :breadcrumbs="[
         { label: 'Notebooks', to: '/dashboard' },
@@ -77,35 +77,33 @@ function openSource(src) {
       ]"
     />
 
-    <div v-if="store.loading.notebook" class="flex-1 flex items-center justify-center text-neutral-500 gap-2">
+    <div v-if="store.loading.notebook" class="flex-1 flex items-center justify-center text-oc-mid gap-2">
       <Spinner /> Loading notebook…
     </div>
 
     <template v-else>
-      <!-- Desktop: 3-column layout -->
       <div class="flex-1 min-h-0 hidden lg:grid grid-cols-[280px_1fr_340px]">
-        <div class="border-r border-neutral-200 min-h-0">
+        <div class="border-r border-warm min-h-0">
           <FilesPanel @open-pdf="openPdf" @open-image="openImage" />
         </div>
-        <div class="border-r border-neutral-200 min-h-0">
+        <div class="border-r border-warm min-h-0">
           <ChatPanel @open-source="openSource" />
         </div>
-        <div class="border-l border-neutral-200 min-h-0">
+        <div class="border-l border-warm min-h-0">
           <ToolsPanel @open-asset="openAsset" />
         </div>
       </div>
 
-      <!-- Mobile/Tablet: tabbed layout with bottom nav -->
       <div class="flex-1 min-h-0 flex flex-col lg:hidden">
         <div class="flex-1 min-h-0">
           <FilesPanel v-show="mobileTab === 'files'" @open-pdf="openPdf" @open-image="openImage" />
           <ChatPanel v-show="mobileTab === 'chat'" @open-source="openSource" />
           <ToolsPanel v-show="mobileTab === 'tools'" @open-asset="openAsset" />
         </div>
-        <nav class="shrink-0 grid grid-cols-3 border-t border-neutral-200 bg-white safe-bottom">
+        <nav class="shrink-0 grid grid-cols-3 border-t border-warm bg-oc-dark safe-bottom">
           <button
-            class="py-3 flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors"
-            :class="mobileTab === 'files' ? 'text-brand-600' : 'text-neutral-500'"
+            class="py-3 flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors duration-fast"
+            :class="mobileTab === 'files' ? 'text-oc-light' : 'text-oc-mid'"
             @click="mobileTab = 'files'"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -115,8 +113,8 @@ function openSource(src) {
             <span v-if="store.documents.length" class="text-[9px] opacity-70">{{ store.documents.length }}</span>
           </button>
           <button
-            class="py-3 flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors"
-            :class="mobileTab === 'chat' ? 'text-brand-600' : 'text-neutral-500'"
+            class="py-3 flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors duration-fast"
+            :class="mobileTab === 'chat' ? 'text-oc-light' : 'text-oc-mid'"
             @click="mobileTab = 'chat'"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -125,8 +123,8 @@ function openSource(src) {
             Chat
           </button>
           <button
-            class="py-3 flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors"
-            :class="mobileTab === 'tools' ? 'text-brand-600' : 'text-neutral-500'"
+            class="py-3 flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors duration-fast"
+            :class="mobileTab === 'tools' ? 'text-oc-light' : 'text-oc-mid'"
             @click="mobileTab = 'tools'"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -139,7 +137,6 @@ function openSource(src) {
       </div>
     </template>
 
-    <!-- PDF viewer modal -->
     <AppModal
       :show="!!pdfDoc"
       :title="pdfDoc?.name"
@@ -149,7 +146,6 @@ function openSource(src) {
       <PdfViewer v-if="pdfDoc" :doc="pdfDoc" />
     </AppModal>
 
-    <!-- Image viewer modal -->
     <AppModal
       :show="!!imageDoc"
       :title="imageDoc?.name"
@@ -159,14 +155,13 @@ function openSource(src) {
       <ImageViewer v-if="imageDoc" :doc="imageDoc" />
     </AppModal>
 
-    <!-- Asset viewer modal -->
     <AppModal
       :show="!!assetView || loadingAsset"
       :title="assetView?.title || 'Loading…'"
       size="lg"
       @close="assetView = null"
     >
-      <div v-if="loadingAsset" class="p-10 flex items-center justify-center gap-2 text-neutral-500">
+      <div v-if="loadingAsset" class="p-10 flex items-center justify-center gap-2 text-oc-mid">
         <Spinner /> Loading…
       </div>
       <QuizViewer v-else-if="assetView?.type === 'quiz'" :data="assetView.data" />

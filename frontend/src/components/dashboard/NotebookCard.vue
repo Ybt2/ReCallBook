@@ -21,24 +21,23 @@ const color = computed(() => colors[props.notebook.id % colors.length]);
 
 <template>
   <div
-    class="card group hover:shadow-md hover:-translate-y-0.5 transition-all cursor-pointer overflow-hidden"
+    class="card group hover:border-oc-border transition-colors duration-fast cursor-pointer overflow-hidden"
     @click="$emit('open')"
   >
     <div
-      class="h-28 bg-gradient-to-br flex items-end p-3"
-      :class="color"
+      class="h-28 bg-oc-surface flex items-end p-3 border-b border-warm"
     >
-      <div class="text-white/90 text-xs font-medium">
+      <div class="text-oc-mid text-xs font-medium">
         {{ notebook.fileCount || 0 }} file{{ (notebook.fileCount || 0) === 1 ? "" : "s" }}
       </div>
     </div>
     <div class="p-4 flex items-start justify-between gap-2">
       <div class="min-w-0">
-        <div class="font-semibold truncate">{{ notebook.titulo }}</div>
-        <div class="text-xs text-neutral-500 mt-0.5">Updated {{ date }}</div>
+        <div class="font-bold text-oc-light truncate">{{ notebook.titulo }}</div>
+        <div class="text-xs text-oc-mid mt-0.5">Updated {{ date }}</div>
       </div>
       <button
-        class="btn-ghost !p-1.5 opacity-0 group-hover:opacity-100 text-neutral-500 hover:text-red-600"
+        class="btn-ghost !p-1.5 opacity-0 group-hover:opacity-100 text-oc-mid hover:text-danger"
         title="Delete"
         @click.stop="$emit('delete')"
       >

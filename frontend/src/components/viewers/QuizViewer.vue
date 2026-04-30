@@ -41,21 +41,20 @@ function restart() {
 
 <template>
   <div class="p-6">
-    <div v-if="!questions.length" class="text-center text-neutral-500">
+    <div v-if="!questions.length" class="text-center text-oc-mid">
       No questions available.
     </div>
 
     <div v-else>
-      <!-- Results -->
-      <div v-if="submitted" class="mb-6 card p-4 bg-brand-50 border-brand-200">
-        <div class="text-sm text-brand-700">Score</div>
-        <div class="text-2xl font-semibold text-brand-900">
+      <div v-if="submitted" class="mb-6 card p-4 bg-[#007aff]/10 border-[#007aff]/30">
+        <div class="text-sm text-[#007aff]">Score</div>
+        <div class="text-2xl font-semibold text-oc-light">
           {{ score }} / {{ questions.length }}
         </div>
         <button class="btn-secondary mt-3" @click="restart">Try again</button>
       </div>
 
-      <div class="flex items-center justify-between mb-3 text-sm text-neutral-500">
+      <div class="flex items-center justify-between mb-3 text-sm text-oc-mid">
         <span>Question {{ current + 1 }} of {{ questions.length }}</span>
         <div class="flex gap-1">
           <button
@@ -63,9 +62,9 @@ function restart() {
             :key="i"
             class="w-6 h-6 rounded-full text-[11px] grid place-items-center"
             :class="[
-              current === i ? 'bg-brand-600 text-white' : 'bg-neutral-100 text-neutral-600',
-              submitted && answers[i] === questions[i].correct ? '!bg-emerald-500 !text-white' : '',
-              submitted && answers[i] !== undefined && answers[i] !== questions[i].correct ? '!bg-red-500 !text-white' : ''
+              current === i ? 'bg-[#007aff] text-white' : 'bg-oc-surface text-oc-mid',
+              submitted && answers[i] === questions[i].correct ? '!bg-success !text-white' : '',
+              submitted && answers[i] !== undefined && answers[i] !== questions[i].correct ? '!bg-danger !text-white' : ''
             ]"
             @click="current = i"
           >
@@ -75,18 +74,18 @@ function restart() {
       </div>
 
       <div class="card p-5">
-        <div class="font-medium text-neutral-900 mb-4">{{ q.question }}</div>
+        <div class="font-medium text-oc-light mb-4">{{ q.question }}</div>
         <div class="space-y-2">
           <button
             v-for="(opt, i) in q.options"
             :key="i"
-            class="w-full text-left rounded-lg border p-3 text-sm transition-colors"
+            class="w-full text-left rounded-btn border p-3 text-sm transition-colors duration-fast"
             :class="[
-              !submitted && answers[current] === i ? 'border-brand-500 bg-brand-50' :
-              !submitted ? 'border-neutral-200 hover:bg-neutral-50' :
-              i === q.correct ? 'border-emerald-500 bg-emerald-50' :
-              answers[current] === i ? 'border-red-500 bg-red-50' :
-              'border-neutral-200'
+              !submitted && answers[current] === i ? 'border-[#007aff] bg-[#007aff]/10 text-oc-light' :
+              !submitted ? 'border-warm hover:bg-oc-surface text-oc-light' :
+              i === q.correct ? 'border-success bg-success/10 text-oc-light' :
+              answers[current] === i ? 'border-danger bg-danger/10 text-oc-light' :
+              'border-warm text-oc-mid'
             ]"
             @click="select(i)"
           >
@@ -97,9 +96,9 @@ function restart() {
 
         <div
           v-if="submitted && q.explanation"
-          class="mt-4 text-sm text-neutral-600 bg-neutral-50 border border-neutral-200 rounded-lg p-3"
+          class="mt-4 text-sm text-oc-mid bg-oc-surface border border-warm rounded-btn p-3"
         >
-          <span class="font-medium">Explanation: </span>{{ q.explanation }}
+          <span class="font-medium text-oc-light">Explanation: </span>{{ q.explanation }}
         </div>
       </div>
 

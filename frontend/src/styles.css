@@ -3,7 +3,40 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  --oc-dark: 32 29 29;
+  --oc-light: 253 252 252;
+  --oc-surface: 48 44 44;
+  --oc-mid: 154 152 152;
+  --oc-muted: 110 110 115;
+  --oc-border: 100 98 98;
+  --oc-input-bg: 248 247 247;
+  --oc-input-fg: 32 29 29;
+  --border-warm: rgba(15, 0, 0, 0.12);
+  --scrollbar-thumb: rgba(253, 252, 252, 0.15);
+}
+
+:root.light {
+  --oc-dark: 255 255 255;
+  --oc-light: 32 29 29;
+  --oc-surface: 243 243 243;
+  --oc-mid: 100 100 105;
+  --oc-muted: 150 150 155;
+  --oc-border: 200 200 200;
+  --oc-input-bg: 255 255 255;
+  --oc-input-fg: 32 29 29;
+  --border-warm: rgba(0, 0, 0, 0.1);
+  --scrollbar-thumb: rgba(32, 29, 29, 0.15);
+}
+
+@layer base {
+  * {
+   @apply border-warm;
+  }
+  body {
+    @apply bg-oc-dark text-oc-light font-mono antialiased;
+    font-size: 16px;
+    line-height: 1.50;
+  }
 }
 
 html,
@@ -12,47 +45,38 @@ body,
   height: 100%;
 }
 
-body {
-  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
-    Roboto, sans-serif;
+@layer components {
+  .card {
+    @apply bg-oc-surface border border-warm rounded-btn;
+  }
+  .input {
+    @apply w-full bg-oc-input-bg text-oc-input-fg border border-warm rounded-input px-5 py-[20px] font-mono text-base leading-normal placeholder:text-oc-muted focus:outline-none focus:border-oc-border transition-colors duration-fast;
+  }
+  .label {
+    @apply block text-sm font-medium text-oc-light mb-1;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-oc-dark text-oc-light border border-oc-border rounded-btn px-5 py-1 font-mono text-base font-medium leading-relaxed hover:bg-oc-surface transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 bg-oc-surface text-oc-light border border-warm rounded-btn px-5 py-1 font-mono text-base font-medium hover:bg-oc-dark transition-colors duration-fast disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 bg-transparent text-oc-mid rounded-btn px-3 py-1 font-mono text-sm font-medium hover:text-oc-light hover:bg-oc-surface transition-colors duration-fast;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 bg-danger text-white border-none rounded-btn px-5 py-1 font-mono text-base font-medium hover:bg-danger-hover transition-colors duration-fast;
+  }
 }
 
-/* Custom scrollbars */
 .scrollbar-thin::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.15);
+  background-color: var(--scrollbar-thumb);
   border-radius: 9999px;
 }
 .scrollbar-thin::-webkit-scrollbar-track {
   background: transparent;
-}
-
-@layer components {
-  .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
-  }
-  .btn-primary {
-    @apply btn bg-brand-600 text-white hover:bg-brand-700;
-  }
-  .btn-secondary {
-    @apply btn bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50;
-  }
-  .btn-ghost {
-    @apply btn text-neutral-600 hover:bg-neutral-100;
-  }
-  .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-700;
-  }
-  .input {
-    @apply w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-900 placeholder-neutral-400 focus:border-brand-400 focus:outline-none focus:ring-2 focus:ring-brand-200;
-  }
-  .card {
-    @apply rounded-xl border border-neutral-200 bg-white shadow-sm;
-  }
-  .label {
-    @apply block text-xs font-medium text-neutral-600 mb-1;
-  }
 }

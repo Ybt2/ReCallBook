@@ -30,37 +30,37 @@ defineProps({
 </script>
 
 <template>
-  <header class="h-14 bg-white border-b border-neutral-200 px-5 flex items-center justify-between shrink-0">
+  <header class="h-14 bg-oc-dark border-b border-warm px-5 flex items-center justify-between shrink-0">
     <div class="flex items-center gap-3">
-      <router-link to="/dashboard" class="flex items-center gap-2 font-semibold text-neutral-900">
-        <span class="w-7 h-7 rounded-md bg-brand-600 text-white grid place-items-center text-sm">R</span>
+      <router-link to="/dashboard" class="flex items-center gap-2 font-bold text-oc-light">
+        <span class="w-7 h-7 rounded-btn bg-oc-surface border border-warm text-oc-light grid place-items-center text-sm">R</span>
         RecallBook
       </router-link>
     </div>
     <div class="relative" @focusout="closeDropdown">
       <button
-        class="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-neutral-50 transition-colors"
+        class="flex items-center gap-2 rounded-btn px-2 py-1.5 hover:bg-oc-surface transition-colors duration-fast"
         @click="showDropdown = !showDropdown"
       >
-        <span class="text-sm text-neutral-600 hidden sm:block">
+        <span class="text-sm text-oc-mid hidden sm:block">
           {{ auth.user?.username }}
         </span>
-        <div class="w-8 h-8 rounded-full bg-brand-100 text-brand-700 grid place-items-center font-semibold text-sm">
+        <div class="w-8 h-8 rounded-full bg-oc-surface text-oc-light grid place-items-center font-bold text-sm border border-warm">
           {{ (auth.user?.username || "?")[0].toUpperCase() }}
         </div>
         <svg
           width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-          class="text-neutral-400 transition-transform" :class="showDropdown ? 'rotate-180' : ''"
+          class="text-oc-mid transition-transform duration-fast" :class="showDropdown ? 'rotate-180' : ''"
         >
           <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </button>
       <div
         v-if="showDropdown"
-        class="absolute right-0 top-full mt-1 w-48 bg-white border border-neutral-200 rounded-xl shadow-lg z-50 py-1"
+        class="absolute right-0 top-full mt-1 w-48 bg-oc-surface border border-warm rounded-btn z-50 py-1"
       >
         <button
-          class="w-full text-left px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 flex items-center gap-2"
+          class="w-full text-left px-4 py-2 text-sm text-oc-light hover:bg-oc-dark flex items-center gap-2"
           @click="openConfigurations"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -69,9 +69,9 @@ defineProps({
           </svg>
           Configurations
         </button>
-        <div class="border-t border-neutral-100 my-1"></div>
+        <div class="border-t border-warm my-1"></div>
         <button
-          class="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          class="w-full text-left px-4 py-2 text-sm text-danger hover:bg-oc-dark flex items-center gap-2"
           @click="logout"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

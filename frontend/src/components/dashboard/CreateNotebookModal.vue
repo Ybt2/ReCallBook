@@ -71,26 +71,26 @@ async function submit() {
       <div>
         <label class="label">Upload PDFs (optional)</label>
         <label
-          class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-neutral-200 rounded-lg p-6 cursor-pointer hover:border-brand-400 hover:bg-brand-50/40"
+          class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-oc-border rounded-btn p-6 cursor-pointer hover:border-oc-mid hover:bg-oc-dark/40"
           :class="{ 'pointer-events-none opacity-60': step === 'processing' }"
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-neutral-400">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-oc-mid">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5-5 5 5M12 5v12" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="text-sm text-neutral-600">Click to browse or drop PDFs</span>
+          <span class="text-sm text-oc-mid">Click to browse or drop PDFs</span>
           <input type="file" multiple accept="application/pdf" class="hidden" @change="onPick" />
         </label>
-        <ul v-if="files.length" class="mt-2 space-y-1 text-sm text-neutral-700">
+        <ul v-if="files.length" class="mt-2 space-y-1 text-sm text-oc-light">
           <li v-for="(f, i) in files" :key="i" class="flex items-center gap-2 truncate">
-            <span class="text-neutral-400">•</span>{{ f.name }}
+            <span class="text-oc-mid">•</span>{{ f.name }}
           </li>
         </ul>
       </div>
 
-      <div v-if="step === 'processing'" class="flex items-center gap-2 text-sm text-neutral-600">
+      <div v-if="step === 'processing'" class="flex items-center gap-2 text-sm text-oc-mid">
         <Spinner /> {{ progress }}
       </div>
-      <p v-if="error" class="text-sm text-red-600">{{ error }}</p>
+      <p v-if="error" class="text-sm text-danger">{{ error }}</p>
     </div>
     <template #footer>
       <button class="btn-secondary" :disabled="step === 'processing'" @click="$emit('close')">Cancel</button>

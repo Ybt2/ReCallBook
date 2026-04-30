@@ -7,7 +7,7 @@ const src = computed(() => DocumentsAPI.fileUrl(props.doc.id));
 </script>
 
 <template>
-  <div class="h-[75vh] w-full flex items-center justify-center bg-neutral-50 rounded overflow-auto">
+  <div class="h-[75vh] w-full flex items-center justify-center bg-oc-dark rounded overflow-auto">
     <img
       :src="src"
       :alt="doc.name"

@@ -58,21 +58,21 @@ async function doDelete() {
 </script>
 
 <template>
-  <div class="min-h-full flex flex-col">
+  <div class="min-h-full flex flex-col bg-oc-dark">
     <AppHeader />
 
     <main class="flex-1 px-6 py-8 max-w-7xl w-full mx-auto">
       <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
-          <h1 class="text-2xl font-semibold">Your notebooks</h1>
-          <p class="text-sm text-neutral-500 mt-1">
+          <h1 class="text-2xl font-bold text-oc-light">Your notebooks</h1>
+          <p class="text-sm text-oc-mid mt-1">
             Create a notebook, upload sources, then chat and study.
           </p>
         </div>
         <div class="flex items-center gap-2">
           <input
             v-model="search"
-            class="input !w-64"
+            class="input !w-64 !py-3"
             placeholder="Search notebooks…"
           />
           <button class="btn-primary" @click="showCreate = true">
@@ -84,13 +84,13 @@ async function doDelete() {
         </div>
       </div>
 
-      <div v-if="store.loading" class="flex items-center gap-2 text-neutral-500">
+      <div v-if="store.loading" class="flex items-center gap-2 text-oc-mid">
         <Spinner /> Loading…
       </div>
 
       <div v-else-if="filtered.length === 0" class="card p-10 text-center">
-        <div class="text-lg font-semibold">No notebooks yet</div>
-        <p class="text-neutral-500 text-sm mt-1">
+        <div class="text-lg font-bold text-oc-light">No notebooks yet</div>
+        <p class="text-oc-mid text-sm mt-1">
           Create your first notebook to start uploading PDFs and chatting with your notes.
         </p>
         <button class="btn-primary mt-4" @click="showCreate = true">Create notebook</button>
@@ -122,9 +122,9 @@ async function doDelete() {
       size="sm"
       @close="confirmDelete = null"
     >
-      <div class="p-5 text-sm text-neutral-700">
+      <div class="p-5 text-sm text-oc-mid">
         Are you sure you want to delete
-        <span class="font-semibold">"{{ confirmDelete?.titulo }}"</span>? This will
+        <span class="font-bold text-oc-light">"{{ confirmDelete?.titulo }}"</span>? This will
         remove all its files, chats and generated items.
       </div>
       <template #footer>

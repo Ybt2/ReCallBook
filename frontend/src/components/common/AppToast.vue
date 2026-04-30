@@ -9,16 +9,16 @@ const toasts = useToastStore();
       <div
         v-for="t in toasts.items"
         :key="t.id"
-        class="card px-4 py-3 flex items-start gap-3 shadow-md"
+        class="card px-4 py-3 flex items-start gap-3"
         :class="{
-          'border-l-4 border-l-green-500': t.type === 'success',
-          'border-l-4 border-l-red-500': t.type === 'error',
+          'border-l-4 border-l-success': t.type === 'success',
+          'border-l-4 border-l-danger': t.type === 'error',
           'border-l-4 border-l-brand-500': t.type === 'info',
         }"
       >
-        <div class="flex-1 text-sm text-neutral-800">{{ t.message }}</div>
+        <div class="flex-1 text-sm text-oc-light">{{ t.message }}</div>
         <button
-          class="text-neutral-400 hover:text-neutral-700"
+          class="text-oc-mid hover:text-oc-light"
           @click="toasts.dismiss(t.id)"
         >
           ×
@@ -31,7 +31,7 @@ const toasts = useToastStore();
 <style scoped>
 .toast-enter-active,
 .toast-leave-active {
-  transition: all 0.2s ease;
+  transition: all 150ms ease;
 }
 .toast-enter-from,
 .toast-leave-to {

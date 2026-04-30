@@ -54,12 +54,12 @@ function onCiteClick(n) {
 <template>
   <div :class="['flex', isUser ? 'justify-end' : 'justify-start']">
     <div :class="['max-w-[85%] sm:max-w-[75%]', isUser ? 'text-right' : '']">
-      
+
       <div
         class="text-sm whitespace-pre-wrap leading-relaxed inline-block text-left"
-        :class="isUser 
-          ? 'rounded-2xl px-4 py-2.5 bg-brand-600 text-white' 
-          : 'text-neutral-800 py-1'"
+        :class="isUser
+          ? 'rounded-btn px-4 py-2.5 bg-[#007aff] text-white'
+          : 'text-oc-light py-1'"
       >
         <template v-for="(t, i) in tokens" :key="i">
           <span v-if="t.type === 'text'">{{ t.value }}</span>
@@ -75,7 +75,7 @@ function onCiteClick(n) {
 
       <div
         v-if="!isUser && (message.model || message.tokens)"
-        class="mt-1 text-[11px] text-neutral-500 flex items-center gap-2"
+        class="mt-1 text-[11px] text-oc-muted flex items-center gap-2"
       >
         <span v-if="message.model" class="inline-flex items-center gap-1">
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -101,11 +101,11 @@ function onCiteClick(n) {
   border-radius: 0.375rem;
   font-size: 11px;
   font-weight: 600;
-  background: #e0f2fe;
-  color: #0369a1;
+  background: rgba(0, 122, 255, 0.15);
+  color: #007aff;
   cursor: pointer;
   vertical-align: baseline;
-  transition: background 0.15s;
+  transition: background 150ms;
 }
-.cite:hover { background: rgb(186 230 253); }
+.cite:hover { background: rgba(0, 122, 255, 0.25); }
 </style>

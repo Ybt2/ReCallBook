@@ -57,11 +57,11 @@ async function remove(d) {
 </script>
 
 <template>
-  <aside class="flex flex-col border-r border-neutral-200 bg-white min-h-0">
-    <div class="px-4 py-3 border-b border-neutral-200 flex items-center justify-between shrink-0">
+  <aside class="flex flex-col border-r border-warm bg-oc-dark min-h-0">
+    <div class="px-4 py-3 border-b border-warm flex items-center justify-between shrink-0">
       <div>
-        <h2 class="font-semibold text-sm">Sources</h2>
-        <p class="text-xs text-neutral-500">
+        <h2 class="font-bold text-sm text-oc-light">Sources</h2>
+        <p class="text-xs text-oc-mid">
           {{ store.selectedDocIds.size }}/{{ store.documents.length }} active in RAG
         </p>
       </div>
@@ -83,41 +83,41 @@ async function remove(d) {
       />
     </div>
 
-    <div v-if="uploading" class="px-4 py-1 border-b border-neutral-100 shrink-0">
-      <div class="w-full bg-neutral-200 rounded-full h-1.5">
+    <div v-if="uploading" class="px-4 py-1 border-b border-warm shrink-0">
+      <div class="w-full bg-oc-surface rounded-full h-1.5">
         <div
-          class="bg-brand-600 h-1.5 rounded-full transition-all duration-200"
+          class="bg-brand-500 h-1.5 rounded-full transition-all duration-200"
           :style="{ width: uploadProgress + '%' }"
         />
       </div>
-      <p class="text-[10px] text-neutral-500 mt-0.5">{{ uploadProgress }}%</p>
+      <p class="text-[10px] text-oc-mid mt-0.5">{{ uploadProgress }}%</p>
     </div>
 
-    <label class="px-4 py-2 border-b border-neutral-100 flex items-center gap-2 text-xs shrink-0">
+    <label class="px-4 py-2 border-b border-warm flex items-center gap-2 text-xs shrink-0">
       <input
         type="checkbox"
-        class="accent-brand-600"
+        class="accent-brand-500"
         :checked="allSelected"
         @change="store.selectAllDocs($event.target.checked)"
       />
-      <span class="text-neutral-600">Select all</span>
+      <span class="text-oc-mid">Select all</span>
     </label>
 
     <div class="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1 min-h-0">
-      <div v-if="store.loading.documents" class="p-3 text-sm text-neutral-500 flex items-center gap-2">
+      <div v-if="store.loading.documents" class="p-3 text-sm text-oc-mid flex items-center gap-2">
         <Spinner /> Loading…
       </div>
-      <div v-else-if="!store.documents.length" class="p-5 text-center text-sm text-neutral-500">
+      <div v-else-if="!store.documents.length" class="p-5 text-center text-sm text-oc-mid">
         No files yet. Upload a PDF or image to get started.
       </div>
       <div
         v-for="d in store.documents"
         :key="d.id"
-        class="group flex items-center gap-2 rounded-lg p-2 hover:bg-neutral-50"
+        class="group flex items-center gap-2 rounded-btn p-2 hover:bg-oc-surface"
       >
         <input
           type="checkbox"
-          class="accent-brand-600 shrink-0"
+          class="accent-brand-500 shrink-0"
           :checked="store.selectedDocIds.has(d.id)"
           @change="store.toggleDoc(d.id)"
           :aria-label="'Select ' + d.name"
@@ -129,20 +129,20 @@ async function remove(d) {
         >
           <span
             v-if="isImg(d)"
-            class="w-7 h-7 shrink-0 rounded bg-blue-50 text-blue-600 grid place-items-center text-[10px] font-bold"
+            class="w-7 h-7 shrink-0 rounded-btn bg-oc-surface text-brand-500 grid place-items-center text-[10px] font-bold border border-warm"
           >
             {{ d.type.toUpperCase() }}
           </span>
           <span
             v-else
-            class="w-7 h-7 shrink-0 rounded bg-red-50 text-red-600 grid place-items-center text-[10px] font-bold"
+            class="w-7 h-7 shrink-0 rounded-btn bg-oc-surface text-danger grid place-items-center text-[10px] font-bold border border-warm"
           >
             PDF
           </span>
-          <span class="truncate text-sm text-neutral-800">{{ d.name }}</span>
+          <span class="truncate text-sm text-oc-light">{{ d.name }}</span>
         </button>
         <button
-          class="btn-ghost !p-1 opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-red-600"
+          class="btn-ghost !p-1 opacity-0 group-hover:opacity-100 text-oc-mid hover:text-danger"
           title="Delete"
           @click="remove(d)"
         >

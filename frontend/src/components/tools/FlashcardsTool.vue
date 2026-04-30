@@ -46,7 +46,7 @@ async function generate() {
 <template>
   <div>
     <button
-      class="w-full py-2 rounded-lg text-sm border bg-white border-neutral-200 text-neutral-700 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-neutral-200 disabled:hover:text-neutral-700"
+      class="w-full py-2 rounded-btn text-sm border border-warm bg-oc-dark text-oc-mid hover:bg-oc-surface hover:text-oc-light flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-oc-dark disabled:hover:text-oc-mid transition-colors duration-fast"
       :disabled="!store.documents.length || store.isGenerating"
       @click="openConfig"
     >
