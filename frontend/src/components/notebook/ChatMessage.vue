@@ -58,7 +58,7 @@ function onCiteClick(n) {
       <div
         class="text-sm whitespace-pre-wrap leading-relaxed inline-block text-left"
         :class="isUser
-          ? 'rounded-btn px-4 py-2.5 bg-[#007aff] text-white'
+          ? 'rounded-btn px-4 py-2.5 bg-[#f4f4f4] text-[#1a1a1a]'
           : 'text-oc-light py-1'"
       >
         <template v-for="(t, i) in tokens" :key="i">
@@ -78,9 +78,7 @@ function onCiteClick(n) {
         class="mt-1 text-[11px] text-oc-muted flex items-center gap-2"
       >
         <span v-if="message.model" class="inline-flex items-center gap-1">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>
-          </svg>
+
           {{ message.model }}
         </span>
         <span v-if="message.tokens">· {{ message.tokens }} tokens</span>
