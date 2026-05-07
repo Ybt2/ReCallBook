@@ -45,17 +45,19 @@ async function processImage(filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const mimeType = ext === ".png" ? "image/png" : ext === ".svg" ? "image/svg+xml" : "image/jpeg";
 
+  return processImageBase64(base64Image, mimeType);
+}
+
+async function processImageBase64(base64, mimeType = "image/png") {
   const message = new HumanMessage({
     content: [
       { type: "text", text: VISION_PROMPT },
-      { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64Image}` } },
+      { type: "image_url", image_url: { url: `data:${mimeType};base64,${base64}` } },
     ],
   });
 
   const response = await llmvision.invoke([message]);
-  const content = response.content || "";
-
-  return content.trim();
+  return (response.content || "").trim();
 }
 
 async function parseImage(filePath, notebookId, docId, originalname) {
@@ -100,4 +102,4 @@ async function parseImage(filePath, notebookId, docId, originalname) {
   };
 }
 
-module.exports = { processImage, parseImage, isImageFile, getImageType, IMAGE_EXTENSIONS };
+module.exports = { processImage, processImageBase64, parseImage, isImageFile, getImageType, IMAGE_EXTENSIONS };
