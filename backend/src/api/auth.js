@@ -3,21 +3,25 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const { pool } = require("../db/init");
 const { appendLog, consoleLog } = require("../utils/logger");
-const { signToken } = require("../middleware/auth");
+const { signToken, requireAuth } = require("../middleware/auth");
 const { AppError } = require("../middleware/errorHandler");
+
+const SUPPORTED_LANGUAGES = ["English","Portuguese","Spanish","French","German","Italian","Chinese","Japanese","Korean","Dutch","Polish","Russian","Arabic","Hindi"];
 
 // POST /api/auth/register
 router.post("/register", async (req, res, next) => {
-  const { username, email, password } = req.body;
+  const { username, email, password, language = "English" } = req.body;
   if (!username || !email || !password) {
     return next(new AppError("username, email and password are required.", "VALIDATION_ERROR", 400));
   }
 
+  const lang = SUPPORTED_LANGUAGES.includes(language) ? language : "English";
+
   try {
     const hashed = await bcrypt.hash(password, 10);
     const [result] = await pool.query(
-      "INSERT INTO Utilizadores (username, email, password) VALUES (?, ?, ?)",
-      [username, email, hashed]
+      "INSERT INTO Utilizadores (username, email, password, language) VALUES (?, ?, ?, ?)",
+      [username, email, hashed, lang]
     );
 
     const userId = result.insertId;
@@ -27,7 +31,7 @@ router.post("/register", async (req, res, next) => {
     const token = signToken({ id: userId, username, email });
     res.status(201).json({
       message: "User created!",
-      user: { id: userId, username, email },
+      user: { id: userId, username, email, language: lang },
       token,
     });
   } catch (err) {
@@ -47,7 +51,7 @@ router.post("/login", async (req, res, next) => {
 
   try {
     const [rows] = await pool.query(
-      "SELECT ID, username, email, password FROM Utilizadores WHERE email = ? LIMIT 1",
+      "SELECT ID, username, email, password, language FROM Utilizadores WHERE email = ? LIMIT 1",
       [email]
     );
 
@@ -75,7 +79,21 @@ router.post("/login", async (req, res, next) => {
     consoleLog("auth", "login", { userId: u.ID });
 
     const token = signToken({ id: u.ID, username: u.username, email: u.email });
-    res.json({ user: { id: u.ID, username: u.username, email: u.email }, token });
+    res.json({ user: { id: u.ID, username: u.username, email: u.email, language: u.language || "English" }, token });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/auth/profile
+router.put("/profile", requireAuth, async (req, res, next) => {
+  const { language } = req.body;
+  if (!language || !SUPPORTED_LANGUAGES.includes(language)) {
+    return next(new AppError("Invalid language.", "VALIDATION_ERROR", 400));
+  }
+  try {
+    await pool.query("UPDATE Utilizadores SET language = ? WHERE ID = ?", [language, req.user.id]);
+    res.json({ message: "Profile updated.", language });
   } catch (err) {
     next(err);
   }

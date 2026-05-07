@@ -11,6 +11,8 @@ const toasts = useToastStore();
 const emit = defineEmits(["open-source"]);
 
 const input = ref("");
+const editText = ref("");
+const editingLast = ref(false);
 const scroller = ref(null);
 
 // Model picker
@@ -22,8 +24,21 @@ const installing = ref(false);
 const installProgress = ref(null); // { percent, status, total, completed }
 
 const disabled = computed(
-  () => !!store.streaming || !input.value.trim() || !store.notebook || store.isGenerating
+  () =>
+    !!store.streaming ||
+    !input.value.trim() ||
+    !store.notebook ||
+    store.isGenerating ||
+    store.loading.upload ||
+    !store.selectedDocIds.size
 );
+
+const lastUserMsgId = computed(() => {
+  const last = [...store.messages].reverse().find((m) => m.role === "user");
+  return last?.id ?? null;
+});
+
+const editDisabled = computed(() => !!store.streaming || !!store.loading.upload);
 
 const currentModel = computed(() => store.selectedModel || models.value[0]?.name || "default");
 
@@ -68,6 +83,25 @@ function onKey(e) {
   }
 }
 
+function startEditLast() {
+  const lastUser = [...store.messages].reverse().find((m) => m.role === "user");
+  if (!lastUser || store.streaming || store.loading.upload) return;
+  editText.value = lastUser.content || "";
+  editingLast.value = true;
+}
+
+function cancelEditLast() {
+  editingLast.value = false;
+  editText.value = "";
+}
+
+async function saveEditLast() {
+  if (!editText.value.trim()) return;
+  await store.editLastUserMessage(editText.value);
+  editingLast.value = false;
+  editText.value = "";
+}
+
 function pickModel(name) {
   store.setModel(name);
   showModelMenu.value = false;
@@ -99,6 +133,15 @@ async function installModel() {
 function onSourceClick(s) {
   emit("open-source", s);
 }
+
+async function pinMessage(message) {
+  try {
+    await store.pinMessage(message);
+    toasts.success("Answer pinned as note");
+  } catch (e) {
+    toasts.error(e.message || "Failed to pin");
+  }
+}
 </script>
 
 <template>
@@ -106,9 +149,6 @@ function onSourceClick(s) {
     <div class="px-4 sm:px-5 py-3 border-b border-warm bg-oc-dark shrink-0 flex items-center justify-between">
       <div>
         <h2 class="font-bold text-sm text-oc-light">Chat</h2>
-        <p class="text-xs text-oc-mid hidden sm:block">
-          Ask anything grounded in your selected sources.
-        </p>
       </div>
       <div class="text-[11px] text-oc-mid hidden sm:block">
         {{ store.selectedDocIds.size }} source(s) active
@@ -135,7 +175,11 @@ function onSourceClick(s) {
         v-for="m in store.messages"
         :key="m.id"
         :message="m"
+        :isLastUser="m.id === lastUserMsgId"
+        :editDisabled="editDisabled"
         @open-source="onSourceClick"
+        @edit-last="startEditLast"
+        @pin="pinMessage"
       />
 
       <div v-if="store.streaming" class="space-y-2">
@@ -189,86 +233,119 @@ function onSourceClick(s) {
         </div>
       </div>
 
-      <div class="flex items-end gap-2 max-w-4xl mx-auto">
-        <div class="relative">
-          <button
-            type="button"
-            class="btn-ghost !px-2.5 !py-2 !text-xs border border-warm rounded-btn flex items-center gap-1 h-11"
-            @click="showModelMenu = !showModelMenu"
-            :title="currentModel"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
-            </svg>
-            <span class="max-w-[7rem] truncate hidden sm:inline">{{ currentModel }}</span>
-          </button>
-          <div
-            v-if="showModelMenu"
-            class="absolute bottom-full left-0 mb-2 w-72 bg-oc-surface border border-warm rounded-btn z-30 p-2 space-y-1"
-          >
-            <div class="flex items-center justify-between px-2 py-1">
-              <span class="text-[11px] font-bold text-oc-mid uppercase">Installed</span>
+      <div class="max-w-4xl mx-auto">
+        <div class="rounded-2xl border border-warm bg-oc-dark/60 shadow-[0_0_0_1px_rgba(255,255,255,0.02)] focus-within:shadow-[0_0_0_2px_rgba(59,130,246,0.35)] transition-shadow">
+          <textarea
+            v-model="input"
+            rows="1"
+            class="w-full bg-transparent text-sm text-oc-light placeholder-oc-mid px-4 pt-3 pb-2 resize-none max-h-40 outline-none border-none focus:ring-0"
+            :class="{ 'opacity-50 cursor-not-allowed': store.isGenerating || store.loading.upload || !store.documents.length }"
+            :placeholder="store.loading.upload ? 'Uploading files…' : (!store.documents.length ? 'Upload at least one document to start chatting…' : (store.isGenerating ? 'Generating…' : 'Ask about your sources…'))"
+            :disabled="store.isGenerating || store.loading.upload || !store.documents.length"
+            @keydown="onKey"
+          />
+
+          <div class="flex items-center justify-between px-3 pb-3 pt-1 gap-2">
+            <div class="relative">
               <button
-                class="text-[11px] text-brand-500 hover:underline"
-                @click="loadModels"
-                :disabled="loadingModels"
-              >{{ loadingModels ? "…" : "refresh" }}</button>
-            </div>
-            <div v-if="!models.length" class="text-xs text-oc-mid px-2 py-1">
-              No models found. Install one below.
-            </div>
-            <button
-              v-for="m in models"
-              :key="m.name"
-              type="button"
-              class="w-full text-left px-2 py-1.5 rounded-btn text-sm hover:bg-oc-dark flex items-center justify-between"
-              :class="m.name === store.selectedModel ? 'bg-oc-dark text-brand-500' : 'text-oc-light'"
-              @click="pickModel(m.name)"
-            >
-              <span class="truncate">{{ m.name }}</span>
-              <span v-if="m.parameterSize" class="text-[10px] text-oc-mid ml-2">{{ m.parameterSize }}</span>
-            </button>
-            <div class="border-t border-warm pt-2 mt-2">
-              <div class="text-[11px] font-bold text-oc-mid uppercase px-2 mb-1">Install new</div>
-              <div class="flex gap-1 px-1">
-                <input
-                  v-model="newModelName"
-                  class="input !py-1.5 !text-xs flex-1"
-                  placeholder="e.g. llama3.2:3b"
-                  :disabled="installing"
-                  @keydown.enter.prevent="installModel"
-                />
+                type="button"
+                class="flex items-center gap-1.5 text-xs text-oc-mid hover:text-oc-light transition-colors px-2 py-1.5 rounded-lg hover:bg-white/5"
+                @click="showModelMenu = !showModelMenu"
+                :title="currentModel"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+                </svg>
+                <span class="max-w-[9rem] truncate">{{ currentModel }}</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+
+              <div
+                v-if="showModelMenu"
+                class="absolute bottom-full left-0 mb-2 w-72 bg-oc-surface border border-warm rounded-btn z-30 p-2 space-y-1"
+              >
+                <div class="flex items-center justify-between px-2 py-1">
+                  <span class="text-[11px] font-bold text-oc-mid uppercase">Installed</span>
+                  <button
+                    class="text-[11px] text-brand-500 hover:underline"
+                    @click="loadModels"
+                    :disabled="loadingModels"
+                  >{{ loadingModels ? "…" : "refresh" }}</button>
+                </div>
+                <div v-if="!models.length" class="text-xs text-oc-mid px-2 py-1">
+                  No models found. Install one below.
+                </div>
                 <button
-                  class="btn-primary !py-1.5 !px-2 !text-xs"
-                  :disabled="installing || !newModelName.trim()"
-                  @click="installModel"
+                  v-for="m in models"
+                  :key="m.name"
+                  type="button"
+                  class="w-full text-left px-2 py-1.5 rounded-btn text-sm hover:bg-oc-dark flex items-center justify-between"
+                  :class="m.name === store.selectedModel ? 'bg-oc-dark text-brand-500' : 'text-oc-light'"
+                  @click="pickModel(m.name)"
                 >
-                  <Spinner v-if="installing" :size="10" />
-                  <span v-else>Pull</span>
+                  <span class="truncate">{{ m.name }}</span>
+                  <span v-if="m.parameterSize" class="text-[10px] text-oc-mid ml-2">{{ m.parameterSize }}</span>
                 </button>
+                <div class="border-t border-warm pt-2 mt-2">
+                  <div class="text-[11px] font-bold text-oc-mid uppercase px-2 mb-1">Install new</div>
+                  <div class="flex gap-1 px-1">
+                    <input
+                      v-model="newModelName"
+                      class="input !py-1.5 !text-xs flex-1"
+                      placeholder="e.g. llama3.2:3b"
+                      :disabled="installing"
+                      @keydown.enter.prevent="installModel"
+                    />
+                    <button
+                      class="btn-primary !py-1.5 !px-2 !text-xs"
+                      :disabled="installing || !newModelName.trim()"
+                      @click="installModel"
+                    >
+                      <Spinner v-if="installing" :size="10" />
+                      <span v-else>Pull</span>
+                    </button>
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button
+                class="w-8 h-8 rounded-lg bg-brand-500 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                :disabled="!store.streaming && disabled"
+                @click="store.streaming ? store.stopStreaming() : submit()"
+                :aria-label="store.streaming ? 'Stop generating' : 'Send message'"
+              >
+                <svg v-if="store.streaming" width="12" height="12" viewBox="0 0 12 12" fill="white">
+                  <rect x="0" y="0" width="12" height="12" rx="2"/>
+                </svg>
+                <svg v-else width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="19" x2="12" y2="5"/>
+                  <polyline points="5 12 12 5 19 12"/>
+                </svg>
+              </button>
             </div>
           </div>
         </div>
 
-        <textarea
-          v-model="input"
-          rows="1"
-          class="input !py-3 resize-none max-h-40 flex-1"
-          :class="{ 'opacity-50 cursor-not-allowed': store.isGenerating }"
-          :placeholder="store.isGenerating ? 'Generating…' : 'Ask about your sources…'"
-          :disabled="store.isGenerating"
-          @keydown="onKey"
-        />
-        <button class="btn-primary h-11" :disabled="disabled" @click="submit" aria-label="Send message">
-          <Spinner v-if="store.streaming" />
-          <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-7z" stroke-linejoin="round"/>
-          </svg>
-        </button>
+        <div class="text-[11px] text-oc-muted text-center mt-1.5 hidden sm:block">
+          ReCallBook may be inaccurate. We advise verifying the answers.
+        </div>
       </div>
-      <div class="text-[11px] text-oc-muted text-center mt-1 hidden sm:block">
-        ReCallBook may be inaccurate. We advise verifying the answers.
+
+      <div v-if="editingLast" class="max-w-4xl mx-auto mt-2 p-2 rounded-btn border border-warm bg-oc-surface">
+        <textarea
+          v-model="editText"
+          rows="3"
+          class="input w-full resize-y"
+          :disabled="store.streaming || store.loading.upload"
+        />
+        <div class="mt-2 flex justify-end gap-2">
+          <button class="btn-ghost !py-1.5 !px-2.5 !text-xs" @click="cancelEditLast">Cancel</button>
+          <button class="btn-primary !py-1.5 !px-2.5 !text-xs" :disabled="!editText.trim()" @click="saveEditLast">Resend</button>
+        </div>
       </div>
     </div>
   </section>

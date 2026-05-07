@@ -1,6 +1,7 @@
 const { pool } = require("../db/init");
 const { getVectorStore, client: qdrantClient, COLLECTION_NAME } = require("../db/qdrant");
 const { parsePDF } = require("../utils/readers/pdfParser");
+const { parseText } = require("../utils/readers/textParser");
 const { parseImage, isImageFile, getImageType } = require("../services/vision");
 const { appendLog, consoleLog } = require("../utils/logger");
 const { AppError } = require("../middleware/errorHandler");
@@ -25,9 +26,12 @@ const ALLOWED_MIMES = new Set([
   "image/jpeg",
   "image/png",
   "image/svg+xml",
+  "text/plain",
+  "text/markdown",
+  "text/x-markdown",
 ]);
 
-const ALLOWED_EXTENSIONS = new Set([".pdf", ".jpg", ".jpeg", ".png", ".svg"]);
+const ALLOWED_EXTENSIONS = new Set([".pdf", ".jpg", ".jpeg", ".png", ".svg", ".md", ".txt"]);
 
 const upload = multer({
   dest: TMP_DIR,
@@ -37,7 +41,8 @@ const upload = multer({
     if (!ALLOWED_EXTENSIONS.has(ext)) {
       return cb(new AppError(`File extension '${ext}' is not allowed.`, "INVALID_FILE_TYPE", 400));
     }
-    if (!ALLOWED_MIMES.has(file.mimetype)) {
+    const isTextExt = ext === ".md" || ext === ".txt";
+    if (!isTextExt && !ALLOWED_MIMES.has(file.mimetype)) {
       return cb(new AppError(`MIME type '${file.mimetype}' is not allowed.`, "INVALID_MIME_TYPE", 400));
     }
     cb(null, true);
@@ -54,6 +59,8 @@ const MIME_MAP = {
   ".png": "image/png",
   ".svg": "image/svg+xml",
   ".pdf": "application/pdf",
+  ".md": "text/markdown",
+  ".txt": "text/plain",
 };
 
 // POST /api/documents/upload
@@ -73,7 +80,8 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
     const docId = uuidv4();
     const ext = path.extname(safeName).toLowerCase();
     const isImage = isImageFile(safeName);
-    const fileType = isImage ? getImageType(safeName) : "pdf";
+    const isText = ext === ".md" || ext === ".txt";
+    const fileType = isImage ? getImageType(safeName) : isText ? ext.slice(1) : "pdf";
 
     storedPath = path.join(UPLOAD_DIR, `${docId}${ext}`);
     fs.copyFileSync(tmpPath, storedPath);
@@ -82,6 +90,8 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
     let chunks, summary;
     if (isImage) {
       ({ chunks, summary } = await parseImage(storedPath, notebookId, docId, safeName));
+    } else if (isText) {
+      ({ chunks, summary } = await parseText(storedPath, notebookId, docId, safeName));
     } else {
       ({ chunks, summary } = await parsePDF(storedPath, notebookId, docId, safeName));
     }
@@ -153,7 +163,7 @@ router.get("/:id/file", requireDocumentOwner, async (req, res, next) => {
   const docId = req.params.id;
   if (!/^[a-f0-9\-]{36}$/i.test(docId)) return next(new AppError("Invalid document ID.", "VALIDATION_ERROR", 400));
 
-  const extensions = [".pdf", ".jpg", ".jpeg", ".png", ".svg"];
+  const extensions = [".pdf", ".jpg", ".jpeg", ".png", ".svg", ".md", ".txt"];
   let filePath = null;
   for (const ext of extensions) {
     const candidate = path.join(UPLOAD_DIR, `${docId}${ext}`);
@@ -191,7 +201,7 @@ router.delete("/:id", requireDocumentOwner, async (req, res, next) => {
       console.warn("Qdrant delete warning:", e.message);
     }
 
-    const extensions = [".pdf", ".jpg", ".jpeg", ".png", ".svg"];
+    const extensions = [".pdf", ".jpg", ".jpeg", ".png", ".svg", ".md", ".txt"];
     for (const ext of extensions) {
       const filePath = path.join(UPLOAD_DIR, `${docId}${ext}`);
       if (fs.existsSync(filePath)) {

@@ -1,11 +1,22 @@
 <script setup>
+import { ref } from "vue";
 import { Sun, Moon, Monitor } from "lucide-vue-next";
 import AppHeader from "../components/common/AppHeader.vue";
-import { useAuthStore } from "../stores/auth";
+import { useAuthStore, SUPPORTED_LANGUAGES } from "../stores/auth";
 import { useThemeStore } from "../stores/theme";
+import { useToastStore } from "../stores/toast";
 
 const auth = useAuthStore();
 const theme = useThemeStore();
+const toasts = useToastStore();
+
+const selectedLanguage = ref(auth.userLanguage);
+
+async function saveLanguage() {
+  const ok = await auth.updateLanguage(selectedLanguage.value);
+  if (ok) toasts.success("Language updated.");
+  else toasts.error(auth.error || "Failed to update language.");
+}
 
 const themeOptions = [
   { value: "light", label: "Light", icon: Sun },
@@ -27,6 +38,24 @@ const themeOptions = [
             <span class="text-oc-light">{{ auth.user?.username || "—" }}</span>
             <span class="text-oc-mid">Email</span>
             <span class="text-oc-light">{{ auth.user?.email || "—" }}</span>
+          </div>
+        </div>
+        <div class="card p-5 space-y-4">
+          <h2 class="text-sm font-bold text-oc-light">Language</h2>
+          <p class="text-sm text-oc-mid">Choose the language the AI will use to respond.</p>
+          <div class="flex items-center gap-3">
+            <select v-model="selectedLanguage" class="input max-w-xs">
+              <option v-for="lang in SUPPORTED_LANGUAGES" :key="lang.value" :value="lang.value">
+                {{ lang.label }}
+              </option>
+            </select>
+            <button
+              class="btn-primary"
+              :disabled="auth.loading || selectedLanguage === auth.userLanguage"
+              @click="saveLanguage"
+            >
+              Save
+            </button>
           </div>
         </div>
         <div class="card p-5 space-y-4">

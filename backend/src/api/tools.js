@@ -9,13 +9,40 @@ const { buildNotebookFilter } = require("../utils/validation");
 const { AppError } = require("../middleware/errorHandler");
 const { requireNotebookOwner, requireAssetOwner } = require("../middleware/ownership");
 
-async function getContext(notebookId, docIds, query) {
+async function getContextFromPrompt(notebookId, docIds, query) {
   const vectorStore = await getVectorStore();
   const filter = buildNotebookFilter(notebookId, docIds);
-
-  const results = await vectorStore.similaritySearch(query, 8, filter);
+  const results = await vectorStore.similaritySearch(query, 10, filter);
   if (results.length === 0) throw new AppError("No content found to generate the resource.", "NO_CONTENT", 404);
   return results.map((r) => r.pageContent).join("\n\n");
+}
+
+async function getRandomContext(notebookId, docIds) {
+  const vectorStore = await getVectorStore();
+  const filter = buildNotebookFilter(notebookId, docIds);
+  const diverseQueries = [
+    "main concepts definitions key terms",
+    "examples procedures steps processes",
+    "facts dates events results conclusions",
+    "theories principles rules formulas",
+  ];
+  const seen = new Set();
+  const chunks = [];
+  for (const q of diverseQueries) {
+    try {
+      const results = await vectorStore.similaritySearch(q, 5, filter);
+      for (const r of results) {
+        const key = r.pageContent.slice(0, 80);
+        if (!seen.has(key)) {
+          seen.add(key);
+          chunks.push(r.pageContent);
+        }
+      }
+    } catch (_) {}
+  }
+  if (chunks.length === 0) throw new AppError("No content found to generate the resource.", "NO_CONTENT", 404);
+  const shuffled = chunks.sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 15).join("\n\n");
 }
 
 async function saveAsset(notebookId, type, data, meta = {}) {
@@ -47,7 +74,7 @@ router.get("/", async (req, res, next) => {
       return {
         id: r.id,
         type: r.type,
-        title: data?._meta?.title || data?.title || (r.type === "quiz" ? "Quiz" : "Flashcards"),
+        title: data?._meta?.title || data?.title || (r.type === "quiz" ? "Quiz" : r.type === "note" ? "Note" : "Flashcards"),
         created_at: r.created_at,
       };
     });
@@ -92,19 +119,45 @@ router.delete("/:id", requireAssetOwner, async (req, res, next) => {
   }
 });
 
+// PATCH /api/tools/:id — rename
+router.patch("/:id", requireAssetOwner, async (req, res, next) => {
+  try {
+    const { title } = req.body;
+    if (!title?.trim()) return next(new AppError("title is required.", "VALIDATION_ERROR", 400));
+    const [rows] = await pool.query(
+      "SELECT data FROM Notebook_assets WHERE ID = ? LIMIT 1",
+      [req.params.id]
+    );
+    if (rows.length === 0) return next(new AppError("Resource not found.", "NOT_FOUND", 404));
+    const data = typeof rows[0].data === "string" ? JSON.parse(rows[0].data) : rows[0].data;
+    data._meta = { ...(data._meta || {}), title: title.trim() };
+    await pool.query("UPDATE Notebook_assets SET data = ? WHERE ID = ?", [
+      JSON.stringify(data),
+      req.params.id,
+    ]);
+    res.json({ message: "Renamed." });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // POST /api/tools/quiz
 router.post("/quiz", async (req, res, next) => {
   try {
-    const { notebookId, docIds, prompt, numQuestions = 5, difficulty = "medium" } = req.body;
+    const { notebookId, docIds, prompt, numQuestions = 5, difficulty = "medium", model } = req.body;
 
     const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
     if (nbRows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
     if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
-    const query = prompt?.trim() || "Extract main concepts for a quiz";
+    const [[uRow]] = await pool.query("SELECT language FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
+    const userLanguage = uRow?.language || "English";
 
-    const context = await getContext(notebookId, docIds, query);
-    const quiz = await generateQuizAction(context, numQuestions, difficulty, prompt);
+    const context = prompt?.trim()
+      ? await getContextFromPrompt(notebookId, docIds, prompt.trim())
+      : await getRandomContext(notebookId, docIds);
+
+    const quiz = await generateQuizAction(context, numQuestions, difficulty, prompt, model || undefined, userLanguage);
 
     const title = prompt?.trim() ? `Quiz: ${prompt.slice(0, 40)}` : `Quiz (${numQuestions} questions)`;
     const id = await saveAsset(notebookId, "quiz", quiz, { title, prompt, numQuestions, difficulty });
@@ -125,16 +178,20 @@ router.post("/quiz", async (req, res, next) => {
 // POST /api/tools/flashcards
 router.post("/flashcards", async (req, res, next) => {
   try {
-    const { notebookId, docIds, prompt, numCards = 10, difficulty = "medium" } = req.body;
+    const { notebookId, docIds, prompt, numCards = 10, difficulty = "medium", model } = req.body;
 
     const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
     if (nbRows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
     if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
-    const query = prompt?.trim() || "Key terms for flashcards";
+    const [[uRow]] = await pool.query("SELECT language FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
+    const userLanguage = uRow?.language || "English";
 
-    const context = await getContext(notebookId, docIds, query);
-    const flashcards = await generateFlashcardsAction(context, numCards, difficulty, prompt);
+    const context = prompt?.trim()
+      ? await getContextFromPrompt(notebookId, docIds, prompt.trim())
+      : await getRandomContext(notebookId, docIds);
+
+    const flashcards = await generateFlashcardsAction(context, numCards, difficulty, prompt, model || undefined, userLanguage);
 
     const title = prompt?.trim() ? `Flashcards: ${prompt.slice(0, 40)}` : `Flashcards (${numCards})`;
     const id = await saveAsset(notebookId, "flashcards", flashcards, { title, prompt, numCards, difficulty });
@@ -147,6 +204,29 @@ router.post("/flashcards", async (req, res, next) => {
     consoleLog("tools", "flashcards generated", { notebookId, numCards, difficulty });
 
     res.json({ message: "Flashcards generated!", id, data: flashcards });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/tools/note
+router.post("/note", async (req, res, next) => {
+  try {
+    const { notebookId, content, title } = req.body;
+    if (!notebookId) return next(new AppError("notebookId is required.", "VALIDATION_ERROR", 400));
+    if (!content) return next(new AppError("content is required.", "VALIDATION_ERROR", 400));
+
+    const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
+    if (nbRows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
+    if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
+
+    const noteTitle = title || content.slice(0, 60).replace(/\n/g, " ") + (content.length > 60 ? "…" : "");
+    const id = await saveAsset(notebookId, "note", { content }, { title: noteTitle });
+
+    await appendLog("NoteBooks", "ID", notebookId, "note_pinned", { assetId: id });
+    consoleLog("tools", "note pinned", { notebookId });
+
+    res.json({ message: "Note pinned!", id });
   } catch (err) {
     next(err);
   }

@@ -4,7 +4,7 @@ const { pool } = require("../db/init");
 const { chatWithAi } = require("../services/chatService");
 const { appendLog, consoleLog } = require("../utils/logger");
 const { AppError } = require("../middleware/errorHandler");
-const { requireNotebookOwner } = require("../middleware/ownership");
+
 
 const DEFAULT_MODEL = process.env.DEFAULT_MODEL || "qwen3:14b";
 
@@ -41,12 +41,12 @@ router.get("/messages", async (req, res, next) => {
     const offset = (pageNum - 1) * pageSize;
 
     const [[{ total }]] = await pool.query(
-      "SELECT COUNT(*) as total FROM Mensagens WHERE notebooks_ID = ?",
+      "SELECT COUNT(*) as total FROM Mensagens WHERE notebooks_ID = ? AND is_deleted = 0",
       [notebookId]
     );
     const [rows] = await pool.query(
       `SELECT ID as id, role, conteudo, modelo_ai, num_tokens, tempo_processamento, created_at
-       FROM Mensagens WHERE notebooks_ID = ? ORDER BY created_at ASC LIMIT ? OFFSET ?`,
+       FROM Mensagens WHERE notebooks_ID = ? AND is_deleted = 0 ORDER BY created_at ASC LIMIT ? OFFSET ?`,
       [notebookId, pageSize, offset]
     );
 
@@ -102,8 +102,11 @@ router.post("/pergunta", async (req, res, next) => {
   if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
   try {
+    const [[uRow]] = await pool.query("SELECT language FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
+    const userLanguage = uRow?.language || "English";
+
     const [rows] = await pool.query(
-      "SELECT role, conteudo FROM Mensagens WHERE notebooks_ID = ? ORDER BY created_at DESC LIMIT 6",
+      "SELECT role, conteudo FROM Mensagens WHERE notebooks_ID = ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT 6",
       [notebookId]
     );
     const history = rows
@@ -111,7 +114,7 @@ router.post("/pergunta", async (req, res, next) => {
       .map((m) => `${m.role === "utilizador" ? "User" : "Assistant"}: ${m.conteudo}`)
       .join("\n");
 
-    const aiResponse = await chatWithAi(notebookId, mensagem, history, docIds, { model });
+    const aiResponse = await chatWithAi(notebookId, mensagem, history, docIds, { model, userLanguage });
     const elapsedSecs = (Date.now() - startTime) / 1000;
     const tempoProc = secsToTime(elapsedSecs);
     const usedModel = aiResponse.model || model || DEFAULT_MODEL;
@@ -159,7 +162,7 @@ router.post("/pergunta", async (req, res, next) => {
 // POST /api/chat/stream  -> Server-Sent Events (stages + tokens + done)
 router.post("/stream", async (req, res) => {
   const startTime = Date.now();
-  const { notebookId, mensagem, docIds, model } = req.body;
+  const { notebookId, mensagem, docIds, model, editMessageId } = req.body;
 
   if (!notebookId || !mensagem) {
     return res.status(400).json({ error: "notebookId and mensagem are required.", code: "VALIDATION_ERROR", status: 400 });
@@ -189,8 +192,18 @@ router.post("/stream", async (req, res) => {
   req.on("aborted", () => { closed = true; });
 
   try {
+    const [[uRow]] = await pool.query("SELECT language FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
+    const userLanguage = uRow?.language || "English";
+
+    if (editMessageId) {
+      await pool.query(
+        "UPDATE Mensagens SET is_deleted = 1 WHERE notebooks_ID = ? AND id >= ?",
+        [notebookId, editMessageId]
+      );
+    }
+
     const [rows] = await pool.query(
-      "SELECT role, conteudo FROM Mensagens WHERE notebooks_ID = ? ORDER BY created_at DESC LIMIT 6",
+      "SELECT role, conteudo FROM Mensagens WHERE notebooks_ID = ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT 6",
       [notebookId]
     );
     const history = rows
@@ -208,6 +221,7 @@ router.post("/stream", async (req, res) => {
     console.log("[stream route] calling chatWithAi with opts containing onStage and onToken");
     const aiResponse = await chatWithAi(notebookId, mensagem, history, docIds, {
       model,
+      userLanguage,
       onStage: (stage, info = {}) => {
         console.log("[stream route] onStage callback fired:", stage);
         if (!closed) send("stage", { stage, ...info });

@@ -13,7 +13,10 @@ export const useNotebookStore = defineStore("notebook", {
     assets: [],
     selectedModel: localStorage.getItem("rb.model") || "",
     streaming: null, // { id, content, stages:[{key,label,state}], model }
+    streamAbortController: null,
+    toolAbortController: null,
     isGenerating: false,
+    generatingToolType: null,
     loading: {
       notebook: false,
       documents: false,
@@ -36,7 +39,10 @@ export const useNotebookStore = defineStore("notebook", {
       this.messages = [];
       this.assets = [];
       this.streaming = null;
+      this.streamAbortController = null;
+      this.toolAbortController = null;
       this.isGenerating = false;
+      this.generatingToolType = null;
       this.error = "";
     },
 
@@ -112,8 +118,8 @@ export const useNotebookStore = defineStore("notebook", {
       }
     },
 
-    async sendMessage(text) {
-      if (!text.trim() || !this.notebook) return;
+    async sendMessage(text, editMessageId = null) {
+      if (!text.trim() || !this.notebook || this.loading.upload || !this.selectedDocIds.size) return;
       const optimistic = {
         id: `tmp-u-${Date.now()}`,
         role: "user",
@@ -128,6 +134,7 @@ export const useNotebookStore = defineStore("notebook", {
         stages: [],
         model: this.selectedModel || null,
       };
+      this.streamAbortController = new AbortController();
 
       const pushStage = (key) => {
         if (!this.streaming) return;
@@ -148,16 +155,15 @@ export const useNotebookStore = defineStore("notebook", {
             mensagem: text,
             docIds: this.activeDocIds.length ? this.activeDocIds : null,
             model: this.selectedModel || undefined,
+            ...(editMessageId ? { editMessageId } : {}),
           },
           {
             onUserSaved: ({ id }) => {
-              console.log("[Store.onUserSaved] id:", id);
               this.messages = this.messages.map((m) =>
                 m.id === optimistic.id ? { ...m, id } : m
               );
             },
             onStage: ({ stage }) => {
-              console.log("[Store.onStage] stage:", stage, "streaming:", !!this.streaming);
               if (!this.streaming) return;
               if (stage === "done") {
                 const stages = this.streaming.stages.map((s) => ({ ...s, state: "done" }));
@@ -165,7 +171,6 @@ export const useNotebookStore = defineStore("notebook", {
               } else {
                 pushStage(stage);
               }
-              console.log("[Store.onStage] stages now:", JSON.stringify(this.streaming?.stages));
             },
             onToken: (t) => {
               if (!this.streaming) return;
@@ -175,7 +180,6 @@ export const useNotebookStore = defineStore("notebook", {
               };
             },
             onDone: (payload) => {
-              console.log("[Store.onDone] payload:", payload);
               const msg = {
                 id: payload.id,
                 role: "assistant",
@@ -187,9 +191,14 @@ export const useNotebookStore = defineStore("notebook", {
               };
               this.messages = [...this.messages, msg];
               this.streaming = null;
+              this.streamAbortController = null;
             },
             onError: (m) => {
-              console.error("[Store.onError]", m);
+              if (m === "Request cancelled") {
+                this.streaming = null;
+                this.streamAbortController = null;
+                return;
+              }
               this.messages = this.messages.filter(
                 (msg) => msg.id !== optimistic.id
               );
@@ -203,21 +212,65 @@ export const useNotebookStore = defineStore("notebook", {
                 },
               ];
               this.streaming = null;
+              this.streamAbortController = null;
               this.isGenerating = false;
             },
-          }
+          },
+          this.streamAbortController.signal
         );
-        console.log("[Store.sendMessage] stream call completed");
       } catch (e) {
         this.messages = this.messages.filter(
           (msg) => !String(msg.id).startsWith("tmp-")
         );
         this.streaming = null;
+        this.streamAbortController = null;
         this.isGenerating = false;
         this.error = e.message || "Stream failed";
       } finally {
         this.loading.chat = false;
       }
+    },
+
+    stopStreaming() {
+      if (!this.streamAbortController) return;
+      this.streamAbortController.abort();
+      this.streamAbortController = null;
+      this.streaming = null;
+      this.loading.chat = false;
+    },
+
+    stopTool() {
+      if (!this.toolAbortController) return;
+      this.toolAbortController.abort();
+      this.toolAbortController = null;
+      this.loading.tool = false;
+      this.isGenerating = false;
+    },
+
+    async editLastUserMessage(newText) {
+      const text = (newText || "").trim();
+      if (!text || !this.notebook || this.loading.chat || this.loading.upload) return false;
+      let lastUserIndex = -1;
+      for (let i = this.messages.length - 1; i >= 0; i--) {
+        if (this.messages[i].role === "user") {
+          lastUserIndex = i;
+          break;
+        }
+      }
+      if (lastUserIndex < 0) return false;
+      const editMessageId = this.messages[lastUserIndex].id;
+      this.messages = this.messages.slice(0, lastUserIndex);
+      await this.sendMessage(text, editMessageId);
+      return true;
+    },
+
+    async pinMessage(message) {
+      if (!this.notebook || !message?.content) return;
+      await ToolsAPI.saveNote({
+        notebookId: this.notebook.id,
+        content: message.content,
+      });
+      await this.fetchAssets(this.notebook.id);
     },
 
     async fetchAssets(notebookId) {
@@ -233,8 +286,11 @@ export const useNotebookStore = defineStore("notebook", {
       if (!this.notebook || this.isGenerating) return;
       this.loading.tool = true;
       this.isGenerating = true;
+      this.generatingToolType = type;
+      this.toolAbortController = new AbortController();
       try {
         const docIds = this.activeDocIds.length ? this.activeDocIds : null;
+        const signal = this.toolAbortController.signal;
         if (type === "quiz") {
           await ToolsAPI.generateQuiz({
             notebookId: this.notebook.id,
@@ -242,6 +298,8 @@ export const useNotebookStore = defineStore("notebook", {
             prompt,
             numQuestions: count,
             difficulty,
+            model: this.selectedModel || undefined,
+            signal,
           });
         } else {
           await ToolsAPI.generateFlashcards({
@@ -250,25 +308,47 @@ export const useNotebookStore = defineStore("notebook", {
             prompt,
             numCards: count,
             difficulty,
+            model: this.selectedModel || undefined,
+            signal,
           });
         }
         await this.fetchAssets(this.notebook.id);
+      } catch (e) {
+        if (e?.code === "ERR_CANCELED" || e?.message === "canceled") {
+          return;
+        }
+        throw e;
       } finally {
         this.loading.tool = false;
         this.isGenerating = false;
+        this.generatingToolType = null;
+        this.toolAbortController = null;
       }
+    },
+
+    async pinMessage(message) {
+      if (!this.notebook || !message?.content) return;
+      await ToolsAPI.saveNote({
+        notebookId: this.notebook.id,
+        content: message.content,
+      });
+      await this.fetchAssets(this.notebook.id);
     },
 
     async removeAsset(id) {
       await ToolsAPI.remove(id);
       this.assets = this.assets.filter((a) => a.id !== id);
     },
+
+    async renameAsset(id, title) {
+      await ToolsAPI.rename(id, title);
+      this.assets = this.assets.map((a) => a.id === id ? { ...a, title } : a);
+    },
   },
 });
 
 const STAGE_LABELS = {
   retrieving_store: "Connecting to vector store",
-  detecting_language: "Detecting language",
   building_queries: "Building search queries",
   searching_documents: "Searching documents",
   reranking: "Reranking candidates",

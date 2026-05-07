@@ -41,6 +41,10 @@ export const ChatAPI = {
         signal,
       });
     } catch (fetchErr) {
+      if (fetchErr?.name === "AbortError") {
+        handlers.onError?.("Request cancelled");
+        return;
+      }
       console.error("[ChatAPI.stream] fetch() threw:", fetchErr);
       handlers.onError?.(fetchErr.message);
       return;

@@ -9,6 +9,7 @@ import PdfViewer from "../components/viewers/PdfViewer.vue";
 import ImageViewer from "../components/viewers/ImageViewer.vue";
 import QuizViewer from "../components/viewers/QuizViewer.vue";
 import FlashcardsViewer from "../components/viewers/FlashcardsViewer.vue";
+import NoteViewer from "../components/viewers/NoteViewer.vue";
 import AppModal from "../components/common/AppModal.vue";
 import Spinner from "../components/common/Spinner.vue";
 import { ToolsAPI } from "../api/tools";
@@ -34,7 +35,7 @@ async function openAsset(a) {
     assetView.value = {
       type: full.type,
       data: full.data,
-      title: full.data?._meta?.title || (full.type === "quiz" ? "Quiz" : "Flashcards"),
+      title: full.data?._meta?.title || (full.type === "quiz" ? "Quiz" : full.type === "note" ? "Note" : "Flashcards"),
     };
   } finally {
     loadingAsset.value = false;
@@ -166,6 +167,7 @@ function openSource(src) {
       </div>
       <QuizViewer v-else-if="assetView?.type === 'quiz'" :data="assetView.data" />
       <FlashcardsViewer v-else-if="assetView?.type === 'flashcards'" :data="assetView.data" />
+      <NoteViewer v-else-if="assetView?.type === 'note'" :data="assetView.data" />
     </AppModal>
   </div>
 </template>

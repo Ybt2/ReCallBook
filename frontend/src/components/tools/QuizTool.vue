@@ -10,15 +10,21 @@ const toasts = useToastStore();
 
 const showConfig = ref(false);
 const prompt = ref("");
-const count = ref(5);
+const count = ref(10);
 const difficulty = ref("medium");
 
+const countOptions = [
+  { value: 5, label: "A few (5)" },
+  { value: 10, label: "Moderate (10)" },
+  { value: 20, label: "A lot (20)" },
+];
+
 function openConfig() {
-  if (!store.documents.length) {
-    toasts.error("Upload at least one document first.");
+  if (!store.selectedDocIds.size) {
+    toasts.error("Select at least one document first.");
     return;
   }
-  if (store.isGenerating) {
+  if (store.isGenerating || store.streaming) {
     toasts.error("A generation is already in progress.");
     return;
   }
@@ -41,13 +47,30 @@ async function generate() {
     toasts.error(e.message);
   }
 }
+
+function stopGeneration() {
+  store.stopTool();
+  toasts.success("Generation stopped.");
+}
 </script>
 
 <template>
   <div>
     <button
+      v-if="store.generatingToolType === 'quiz'"
+      class="w-full py-2 rounded-btn text-sm border border-warm bg-oc-surface text-danger hover:bg-oc-dark flex flex-col items-center gap-1 transition-colors duration-fast"
+      @click="stopGeneration"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="4" y="4" width="16" height="16" rx="2"/>
+      </svg>
+      <span class="text-xs font-medium">Stop</span>
+    </button>
+
+    <button
+      v-else
       class="w-full py-2 rounded-btn text-sm border border-warm bg-oc-dark text-oc-mid hover:bg-oc-surface hover:text-oc-light flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-oc-dark disabled:hover:text-oc-mid transition-colors duration-fast"
-      :disabled="!store.documents.length || store.isGenerating"
+      :disabled="!store.selectedDocIds.size || store.isGenerating || store.streaming"
       @click="openConfig"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -65,7 +88,9 @@ async function generate() {
         <div class="grid grid-cols-2 gap-2">
           <div>
             <label class="label">Number of questions</label>
-            <input v-model.number="count" type="number" min="1" max="30" class="input" />
+            <select v-model="count" class="input">
+              <option v-for="opt in countOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+            </select>
           </div>
           <div>
             <label class="label">Difficulty</label>
@@ -79,7 +104,7 @@ async function generate() {
       </div>
       <template #footer>
         <button class="btn-ghost" @click="showConfig = false">Cancel</button>
-        <button class="btn-primary" :disabled="store.loading.tool || !store.documents.length" @click="generate">
+        <button class="btn-primary" :disabled="store.loading.tool || !store.selectedDocIds.size" @click="generate">
           <Spinner v-if="store.loading.tool" />
           <span>Generate</span>
         </button>

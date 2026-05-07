@@ -9,7 +9,9 @@ const toasts = useToastStore();
 const emit = defineEmits(["open-pdf", "open-image"]);
 
 const IMAGE_TYPES = ["jpeg", "png", "svg"];
+const TEXT_TYPES = ["md", "txt"];
 function isImg(d) { return IMAGE_TYPES.includes(d.type); }
+function isText(d) { return TEXT_TYPES.includes(d.type); }
 
 const fileInput = ref(null);
 const uploading = ref(false);
@@ -61,23 +63,12 @@ async function remove(d) {
     <div class="px-4 py-3 border-b border-warm flex items-center justify-between shrink-0">
       <div>
         <h2 class="font-bold text-sm text-oc-light">Sources</h2>
-        <p class="text-xs text-oc-mid">
-          {{ store.selectedDocIds.size }}/{{ store.documents.length }} active in RAG
-        </p>
       </div>
-      <button
-        class="btn-primary !py-1.5 !px-2.5 !text-xs"
-        :disabled="uploading"
-        @click="fileInput.click()"
-      >
-        <Spinner v-if="uploading" :size="12" />
-        <span v-else>+ Add</span>
-      </button>
       <input
         ref="fileInput"
         type="file"
         multiple
-        accept="application/pdf,image/jpeg,image/png,image/svg+xml"
+        accept="application/pdf,image/jpeg,image/png,image/svg+xml,text/plain,text/markdown,.md,.txt"
         class="hidden"
         @change="onUpload"
       />
@@ -93,7 +84,7 @@ async function remove(d) {
       <p class="text-[10px] text-oc-mid mt-0.5">{{ uploadProgress }}%</p>
     </div>
 
-    <label class="px-4 py-2 border-b border-warm flex items-center gap-2 text-xs shrink-0">
+    <label v-if="store.documents.length > 0" class="px-4 py-2 flex items-center gap-2 text-xs shrink-0">
       <input
         type="checkbox"
         class="accent-brand-500"
@@ -108,7 +99,7 @@ async function remove(d) {
         <Spinner /> Loading…
       </div>
       <div v-else-if="!store.documents.length" class="p-5 text-center text-sm text-oc-mid">
-        No files yet. Upload a PDF or image to get started.
+        Upload file to get started.
       </div>
       <div
         v-for="d in store.documents"
@@ -134,6 +125,12 @@ async function remove(d) {
             {{ d.type.toUpperCase() }}
           </span>
           <span
+            v-else-if="isText(d)"
+            class="w-7 h-7 shrink-0 rounded-btn bg-oc-surface text-success grid place-items-center text-[10px] font-bold border border-warm"
+          >
+            {{ d.type.toUpperCase() }}
+          </span>
+          <span
             v-else
             class="w-7 h-7 shrink-0 rounded-btn bg-oc-surface text-danger grid place-items-center text-[10px] font-bold border border-warm"
           >
@@ -151,6 +148,20 @@ async function remove(d) {
           </svg>
         </button>
       </div>
+
+      <button
+        class="w-full mt-1 py-2 rounded-btn text-xs text-oc-mid hover:bg-oc-surface hover:text-oc-light flex items-center justify-center gap-1.5 transition-colors"
+        :disabled="uploading"
+        @click="fileInput.click()"
+      >
+        <Spinner v-if="uploading" :size="12" />
+        <template v-else>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Add
+        </template>
+      </button>
     </div>
   </aside>
 </template>

@@ -1,5 +1,5 @@
 const { z } = require("zod");
-const { llm } = require("../agent");
+const { llm, createLlm } = require("../agent");
 
 const QuizSchema = z.object({
   questions: z.array(
@@ -12,9 +12,10 @@ const QuizSchema = z.object({
   ),
 });
 
-const structuredLlm = llm.withStructuredOutput(QuizSchema);
+async function generateQuizAction(context, numQuestions = 5, difficulty = "medium", userPrompt = "", model, userLanguage = "English") {
+  const lm = model ? createLlm(model) : llm;
+  const structuredLlm = lm.withStructuredOutput(QuizSchema);
 
-async function generateQuizAction(context, numQuestions = 5, difficulty = "medium", userPrompt = "") {
   const focus = userPrompt?.trim()
     ? `Focus especially on: ${userPrompt.trim()}.`
     : "Cover the most important ideas of the content.";
@@ -22,6 +23,7 @@ async function generateQuizAction(context, numQuestions = 5, difficulty = "mediu
   const prompt = `
 Based on the following content, generate ${numQuestions} multiple choice questions with difficulty "${difficulty}".
 ${focus}
+You MUST respond in ${userLanguage}. All questions, options and explanations must be written in ${userLanguage}.
 You MUST respond ONLY with a valid JSON object. No markdown, no extra text, no code blocks.
 Every question MUST have all these fields: question, options (array of 4 strings), correct (number 0-3), explanation (string).
 

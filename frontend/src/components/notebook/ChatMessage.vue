@@ -1,12 +1,13 @@
 <script setup>
-import { computed } from "vue";
+import { ref, computed } from "vue";
 
-const props = defineProps({ message: Object });
-const emit = defineEmits(["open-source"]);
+const props = defineProps({ message: Object, isLastUser: Boolean, editDisabled: Boolean });
+const emit = defineEmits(["open-source", "edit-last", "pin"]);
 
 const isUser = computed(() => props.message.role === "user");
+const hovered = ref(false);
+const copied = ref(false);
 
-// Split content into plain-text spans and citation tokens like [1]
 const tokens = computed(() => {
   const text = props.message.content || "";
   const out = [];
@@ -49,12 +50,23 @@ function onCiteClick(n) {
   const s = sourceFor(n);
   if (s && (s.docId || s.source)) emit("open-source", s);
 }
+
+async function copyContent() {
+  try {
+    await navigator.clipboard.writeText(props.message.content || "");
+    copied.value = true;
+    setTimeout(() => { copied.value = false; }, 2000);
+  } catch (_) {}
+}
 </script>
 
 <template>
-  <div :class="['flex', isUser ? 'justify-end' : 'justify-start']">
-    <div :class="['max-w-[85%] sm:max-w-[75%]', isUser ? 'text-right' : '']">
-
+  <div
+    :class="['flex flex-col', isUser ? 'items-end' : 'items-start']"
+    @mouseenter="hovered = true"
+    @mouseleave="hovered = false"
+  >
+    <div class="max-w-[85%] sm:max-w-[75%]">
       <div
         class="text-sm whitespace-pre-wrap leading-relaxed inline-block text-left"
         :class="isUser
@@ -77,13 +89,69 @@ function onCiteClick(n) {
         v-if="!isUser && (message.model || message.tokens)"
         class="mt-1 text-[11px] text-oc-muted flex items-center gap-2"
       >
-        <span v-if="message.model" class="inline-flex items-center gap-1">
-
-          {{ message.model }}
-        </span>
+        <span v-if="message.model">{{ message.model }}</span>
         <span v-if="message.tokens">· {{ message.tokens }} tokens</span>
         <span v-if="message.processingTime">· {{ message.processingTime }}s</span>
       </div>
+    </div>
+
+    <!-- AI action buttons: always visible at bottom -->
+    <div v-if="!isUser" class="flex items-center gap-0.5 mt-2">
+      <button
+        class="w-6 h-6 flex items-center justify-center rounded-md text-oc-muted hover:text-brand-400 hover:bg-white/5 transition-colors"
+        title="Pin as note"
+        @click="emit('pin', message)"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v3.76z"/>
+        </svg>
+      </button>
+      <button
+        class="w-6 h-6 flex items-center justify-center rounded-md transition-colors"
+        :class="copied ? 'text-success' : 'text-oc-muted hover:text-oc-light hover:bg-white/5'"
+        :title="copied ? 'Copied!' : 'Copy'"
+        @click="copyContent"
+      >
+        <svg v-if="!copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- User action buttons: reserved space, visible only on hover for last message -->
+    <div
+      v-if="isUser"
+      class="flex items-center gap-0.5 mt-2 transition-opacity duration-150"
+      :class="isLastUser && hovered ? 'opacity-100' : 'opacity-0 pointer-events-none'"
+    >
+      <button
+        v-if="isLastUser && !editDisabled"
+        class="w-6 h-6 flex items-center justify-center rounded-md text-oc-muted hover:text-oc-light hover:bg-black/5 transition-colors"
+        title="Edit message"
+        @click="emit('edit-last')"
+      >
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+      </button>
+      <button
+        v-if="isLastUser"
+        class="w-6 h-6 flex items-center justify-center rounded-md transition-colors"
+        :class="copied ? 'text-success' : 'text-oc-muted hover:text-oc-light hover:bg-black/5'"
+        :title="copied ? 'Copied!' : 'Copy'"
+        @click="copyContent"
+      >
+        <svg v-if="!copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+        </svg>
+        <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6L9 17l-5-5"/>
+        </svg>
+      </button>
     </div>
   </div>
 </template>

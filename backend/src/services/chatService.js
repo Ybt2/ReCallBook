@@ -1,6 +1,6 @@
 const { getVectorStore } = require("../db/qdrant");
 const { searchDocuments } = require("../utils/searchUtils");
-const { detectLanguage, buildQueries, generateAnswer, streamAnswer } = require("../utils/promptUtils");
+const { buildQueries, generateAnswer, streamAnswer } = require("../utils/promptUtils");
 const { buildContext, extractSources } = require("../utils/contextUtils");
 const crossEncoder = require("./cross_encoder");
 
@@ -10,10 +10,11 @@ const crossEncoder = require("./cross_encoder");
  * @param {(stage, info?) => void} opts.onStage
  * @param {(token) => void} opts.onToken    when provided -> streaming
  * @param {string} opts.model                 ollama model id
+ * @param {string} opts.userLanguage          user's preferred language
  */
 async function chatWithAi(notebookId, userMessage, history, docIds = null, opts = {}) {
   console.log("[chatWithAi] opts keys:", Object.keys(opts), "onStage type:", typeof opts.onStage, "onToken type:", typeof opts.onToken);
-  const { onStage = () => {}, onToken = null, model = null } = opts;
+  const { onStage = () => {}, onToken = null, model = null, userLanguage = "English" } = opts;
   console.log("[chatWithAi] destructured onStage type:", typeof onStage, "onToken type:", typeof onToken);
 
   try {
@@ -21,11 +22,8 @@ async function chatWithAi(notebookId, userMessage, history, docIds = null, opts 
     onStage("retrieving_store");
     const vectorStore = await getVectorStore();
 
-    onStage("detecting_language");
-    const detectedLang = await detectLanguage(userMessage);
-
     onStage("building_queries");
-    const queries = await buildQueries(userMessage, detectedLang, vectorStore, notebookId);
+    const queries = await buildQueries(userMessage, userLanguage, vectorStore, notebookId);
 
     onStage("searching_documents", { queries: queries.length });
     const vectorDocs = await searchDocuments(vectorStore, queries, notebookId, docIds);
@@ -51,11 +49,11 @@ async function chatWithAi(notebookId, userMessage, history, docIds = null, opts 
 
     let answer, usage;
     if (onToken) {
-      const result = await streamAnswer(userMessage, context, history, detectedLang, model, onToken);
+      const result = await streamAnswer(userMessage, context, history, userLanguage, model, onToken);
       answer = typeof result === "string" ? result : result.text;
       usage = (typeof result === "object" && result.usage) ? result.usage : null;
     } else {
-      const result = await generateAnswer(userMessage, context, history, detectedLang, model);
+      const result = await generateAnswer(userMessage, context, history, userLanguage, model);
       answer = typeof result === "string" ? result : result.text;
       usage = (typeof result === "object" && result.usage) ? result.usage : null;
     }

@@ -1,27 +1,6 @@
 const { llm: defaultLlm, llmQueryBuilder, createLlm } = require("../services/agent");
-const { franc } = require("franc");
 
-const langMap = {
-  por: "Portuguese",
-  eng: "English",
-  spa: "Spanish",
-  fra: "French",
-  deu: "German",
-  ita: "Italian",
-};
-
-async function detectLanguage(text) {
-  try {
-    if (!text || text.length < 10) return "Portuguese";
-    const langCode = franc(text);
-    if (langCode === "und") return "Portuguese";
-    return langMap[langCode] || "Portuguese";
-  } catch (_) {
-    return "Portuguese";
-  }
-}
-
-async function buildQueries(userMessage, detectedLang, vectorStore, notebookId) {
+async function buildQueries(userMessage, userLanguage, vectorStore, notebookId) {
   let roughContext = "";
   try {
     const roughDocs = await vectorStore.similaritySearchWithScore(userMessage, 4, {
@@ -39,7 +18,7 @@ STRICT RULES:
 - Use ONLY topics present in the CONTEXT
 - Do NOT introduce new topics
 - Write exactly 3 query
-- Same language as ${detectedLang}
+- Same language as ${userLanguage}
 - One query per line
 - No numbering
 - No explanations
@@ -85,16 +64,18 @@ function pickLlm(model) {
   return createLlm(model);
 }
 
-function buildAnswerPrompt(query, context, history, detectedLang) {
+function buildAnswerPrompt(query, context, history, userLanguage) {
   return `You are a professional document analysis assistant.
 Answer the user's question using ONLY the provided CONTEXT.
 
 STRICT RULES:
-1. LANGUAGE: You MUST respond in ${detectedLang}.
+1. LANGUAGE: You MUST answer in ${userLanguage}. Always use ${userLanguage} regardless of the question's language.
 2. FORMAT: Use plain text only. DO NOT wrap the response in code blocks, JSON, or JavaScript functions.
 3. CITATIONS: Use ONLY the format [n] (e.g., [1]) at the end of sentences, NEVER write "Documento [n]" or "[Documento n]". Use ONLY the number inside brackets.
-4. HONESTY: If the context doesn't have the answer, state that you don't know in ${detectedLang}.
+4. HONESTY: If the context doesn't have the answer, state that you don't know in ${userLanguage}.
 5. NO META-TALK: Do not mention your internal processes.
+
+USER LANGUAGE: ${userLanguage}
 
 CONTEXT:
 ${context}
@@ -104,12 +85,12 @@ ${history}
 
 USER QUESTION: ${query}
 
-FINAL ANSWER IN ${detectedLang}:`;
+FINAL ANSWER:`;
 }
 
-async function generateAnswer(query, context, history, detectedLang, model) {
+async function generateAnswer(query, context, history, userLanguage, model) {
   const llm = pickLlm(model);
-  const prompt = buildAnswerPrompt(query, context, history, detectedLang);
+  const prompt = buildAnswerPrompt(query, context, history, userLanguage);
   const res = await llm.invoke(prompt);
   const text = res.content.trim().replace(/^```[a-z]*\n?|```$/gi, "");
   const usage = res.response_metadata?.usage || res.usage_metadata || null;
@@ -123,9 +104,9 @@ async function generateAnswer(query, context, history, detectedLang, model) {
   };
 }
 
-async function streamAnswer(query, context, history, detectedLang, model, onToken) {
+async function streamAnswer(query, context, history, userLanguage, model, onToken) {
   const llm = pickLlm(model);
-  const prompt = buildAnswerPrompt(query, context, history, detectedLang);
+  const prompt = buildAnswerPrompt(query, context, history, userLanguage);
 
   let full = "";
   let lastUsage = null;
@@ -152,7 +133,6 @@ async function streamAnswer(query, context, history, detectedLang, model, onToke
 }
 
 module.exports = {
-  detectLanguage,
   buildQueries,
   generateAnswer,
   streamAnswer,

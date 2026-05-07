@@ -1,17 +1,18 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter } from "vue-router";
-import { useAuthStore } from "../stores/auth";
+import { useAuthStore, SUPPORTED_LANGUAGES } from "../stores/auth";
 import Spinner from "../components/common/Spinner.vue";
 
 const username = ref("");
 const email = ref("");
 const password = ref("");
+const language = ref("English");
 const auth = useAuthStore();
 const router = useRouter();
 
 async function onSubmit() {
-  const ok = await auth.register(username.value, email.value, password.value);
+  const ok = await auth.register(username.value, email.value, password.value, language.value);
   if (ok) router.push({ name: "dashboard" });
 }
 </script>
@@ -42,6 +43,15 @@ async function onSubmit() {
         <div>
           <label class="label">Password</label>
           <input v-model="password" type="password" required minlength="4" class="input" placeholder="••••••••" />
+        </div>
+
+        <div>
+          <label class="label">Language</label>
+          <select v-model="language" class="input">
+            <option v-for="lang in SUPPORTED_LANGUAGES" :key="lang.value" :value="lang.value">
+              {{ lang.label }}
+            </option>
+          </select>
         </div>
 
         <p v-if="auth.error" class="text-sm text-danger">{{ auth.error }}</p>

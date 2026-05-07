@@ -36,7 +36,6 @@ jest.mock("../src/services/agent", () => ({
 }));
 jest.mock("../src/services/tools/quizTool", () => ({ generateQuizAction: jest.fn() }));
 jest.mock("../src/services/tools/flashcardTool", () => ({ generateFlashcardsAction: jest.fn() }));
-jest.mock("franc", () => ({ franc: jest.fn(() => "eng") }));
 jest.mock("uuid", () => ({ v4: jest.fn(() => "00000000-0000-0000-0000-000000000000") }));
 
 global.fetch = jest.fn();

@@ -4,3 +4,5 @@ node_modules/
 .DS_Store
 dist/
 backend/uploads/
+backend/logs/
+TODO.md

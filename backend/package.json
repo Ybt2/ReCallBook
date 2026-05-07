@@ -26,7 +26,6 @@
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.4.1",
-    "franc": "^6.2.0",
     "helmet": "^8.1.0",
     "js-tiktoken": "^1.0.21",
     "jsonwebtoken": "^9.0.3",
@@ -53,7 +52,7 @@
       "./tests/setup.js"
     ],
     "transformIgnorePatterns": [
-      "node_modules/(?!(uuid|franc)/)"
+      "node_modules/(?!(uuid)/)"
     ],
     "transform": {
       "\\.[jt]sx?$": [
