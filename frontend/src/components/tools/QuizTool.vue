@@ -35,13 +35,13 @@ async function generate() {
   if (!store.notebook) return;
   showConfig.value = false;
   try {
-    await store.generateTool({
+    const completed = await store.generateTool({
       type: "quiz",
       prompt: prompt.value,
       count: Number(count.value),
       difficulty: difficulty.value,
     });
-    toasts.success("Quiz generated");
+    if (completed) toasts.success("Quiz generated");
     prompt.value = "";
   } catch (e) {
     toasts.error(e.message);

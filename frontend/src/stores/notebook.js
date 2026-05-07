@@ -313,9 +313,10 @@ export const useNotebookStore = defineStore("notebook", {
           });
         }
         await this.fetchAssets(this.notebook.id);
+        return true;
       } catch (e) {
         if (e?.code === "ERR_CANCELED" || e?.message === "canceled") {
-          return;
+          return false;
         }
         throw e;
       } finally {

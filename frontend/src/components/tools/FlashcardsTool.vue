@@ -35,13 +35,13 @@ async function generate() {
   if (!store.notebook) return;
   showConfig.value = false;
   try {
-    await store.generateTool({
+    const completed = await store.generateTool({
       type: "flashcards",
       prompt: prompt.value,
       count: Number(count.value),
       difficulty: difficulty.value,
     });
-    toasts.success("Flashcards generated");
+    if (completed) toasts.success("Flashcards generated");
     prompt.value = "";
   } catch (e) {
     toasts.error(e.message);
