@@ -61,7 +61,12 @@ async function handleRename(a, e) {
         </div>
       </div>
 
-      <div v-if="store.assets.length" class="space-y-2">
+      <TransitionGroup
+        v-if="store.assets.length"
+        tag="div"
+        name="asset-list"
+        class="space-y-2"
+      >
         <div
           v-for="a in store.assets"
           :key="a.id"
@@ -126,7 +131,7 @@ async function handleRename(a, e) {
             </div>
           </div>
         </div>
-      </div>
+      </TransitionGroup>
 
       <div v-if="store.loading.assets" class="text-sm text-oc-mid flex items-center gap-2 p-2">
         <Spinner /> Loading…
@@ -137,3 +142,20 @@ async function handleRename(a, e) {
     </div>
   </aside>
 </template>
+
+<style scoped>
+.asset-list-enter-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.asset-list-enter-from {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+.asset-list-enter-to {
+  opacity: 1;
+  transform: translateY(0);
+}
+.asset-list-move {
+  transition: transform 0.3s ease;
+}
+</style>

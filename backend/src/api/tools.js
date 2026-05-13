@@ -119,6 +119,31 @@ router.delete("/:id", requireAssetOwner, async (req, res, next) => {
   }
 });
 
+// PATCH /api/tools/:id/results — save (overwrite) the last attempt result
+router.patch("/:id/results", requireAssetOwner, async (req, res, next) => {
+  try {
+    const { result } = req.body;
+    if (!result || typeof result !== "object") {
+      return next(new AppError("result object is required.", "VALIDATION_ERROR", 400));
+    }
+    const [rows] = await pool.query(
+      "SELECT data FROM Notebook_assets WHERE ID = ? LIMIT 1",
+      [req.params.id]
+    );
+    if (rows.length === 0) return next(new AppError("Resource not found.", "NOT_FOUND", 404));
+    const data = typeof rows[0].data === "string" ? JSON.parse(rows[0].data) : rows[0].data;
+    // Store only the last result — overwrite any previous one
+    data._result = { ...result, _at: new Date().toISOString() };
+    await pool.query("UPDATE Notebook_assets SET data = ? WHERE ID = ?", [
+      JSON.stringify(data),
+      req.params.id,
+    ]);
+    res.json({ message: "Result saved.", result: data._result });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // PATCH /api/tools/:id — rename
 router.patch("/:id", requireAssetOwner, async (req, res, next) => {
   try {

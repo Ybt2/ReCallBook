@@ -16,4 +16,6 @@ export const ToolsAPI = {
     api
       .post("/tools/flashcards", { notebookId, docIds, prompt, numCards, difficulty, model }, { signal })
       .then((r) => r.data),
+  saveResult: (id, result) =>
+    api.patch(`/tools/${id}/results`, { result }).then((r) => r.data),
 };

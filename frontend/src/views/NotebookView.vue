@@ -33,6 +33,7 @@ async function openAsset(a) {
   try {
     const full = await ToolsAPI.get(a.id);
     assetView.value = {
+      id: full.id,
       type: full.type,
       data: full.data,
       title: full.data?._meta?.title || (full.type === "quiz" ? "Quiz" : full.type === "note" ? "Note" : "Flashcards"),
@@ -40,6 +41,15 @@ async function openAsset(a) {
   } finally {
     loadingAsset.value = false;
   }
+}
+
+function onResultSaved(result) {
+  if (!assetView.value) return;
+  // Update _result in place so the viewer gets the fresh savedResult on next open
+  assetView.value = {
+    ...assetView.value,
+    data: { ...assetView.value.data, _result: { ...result, _at: new Date().toISOString() } },
+  };
 }
 
 function openPdf(doc) {
@@ -165,7 +175,13 @@ function openSource(src) {
       <div v-if="loadingAsset" class="p-10 flex items-center justify-center gap-2 text-oc-mid">
         <Spinner /> Loading…
       </div>
-      <QuizViewer v-else-if="assetView?.type === 'quiz'" :data="assetView.data" />
+      <QuizViewer
+        v-else-if="assetView?.type === 'quiz'"
+        :data="assetView.data"
+        :asset-id="assetView.id"
+        :saved-result="assetView.data?._result"
+        @result-saved="onResultSaved"
+      />
       <FlashcardsViewer v-else-if="assetView?.type === 'flashcards'" :data="assetView.data" />
       <NoteViewer v-else-if="assetView?.type === 'note'" :data="assetView.data" />
     </AppModal>

@@ -266,11 +266,17 @@ export const useNotebookStore = defineStore("notebook", {
 
     async pinMessage(message) {
       if (!this.notebook || !message?.content) return;
-      await ToolsAPI.saveNote({
+      const result = await ToolsAPI.saveNote({
         notebookId: this.notebook.id,
         content: message.content,
       });
-      await this.fetchAssets(this.notebook.id);
+      const content = message.content;
+      const title = content.slice(0, 60).replace(/\n/g, " ") + (content.length > 60 ? "…" : "");
+      // Prepend the new note directly — no full re-fetch needed
+      this.assets = [
+        { id: result.id, type: "note", title, created_at: new Date().toISOString(), _new: true },
+        ...this.assets,
+      ];
     },
 
     async fetchAssets(notebookId) {
@@ -291,8 +297,9 @@ export const useNotebookStore = defineStore("notebook", {
       try {
         const docIds = this.activeDocIds.length ? this.activeDocIds : null;
         const signal = this.toolAbortController.signal;
+        let result;
         if (type === "quiz") {
-          await ToolsAPI.generateQuiz({
+          result = await ToolsAPI.generateQuiz({
             notebookId: this.notebook.id,
             docIds,
             prompt,
@@ -302,7 +309,7 @@ export const useNotebookStore = defineStore("notebook", {
             signal,
           });
         } else {
-          await ToolsAPI.generateFlashcards({
+          result = await ToolsAPI.generateFlashcards({
             notebookId: this.notebook.id,
             docIds,
             prompt,
@@ -312,7 +319,18 @@ export const useNotebookStore = defineStore("notebook", {
             signal,
           });
         }
-        await this.fetchAssets(this.notebook.id);
+        // Derive the title the same way the backend does
+        let title;
+        if (type === "quiz") {
+          title = prompt?.trim() ? `Quiz: ${prompt.slice(0, 40)}` : `Quiz (${count} questions)`;
+        } else {
+          title = prompt?.trim() ? `Flashcards: ${prompt.slice(0, 40)}` : `Flashcards (${count})`;
+        }
+        // Prepend the new asset directly — no full re-fetch needed
+        this.assets = [
+          { id: result.id, type, title, created_at: new Date().toISOString(), _new: true },
+          ...this.assets,
+        ];
         return true;
       } catch (e) {
         if (e?.code === "ERR_CANCELED" || e?.message === "canceled") {
