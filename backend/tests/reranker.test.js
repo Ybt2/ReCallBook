@@ -10,6 +10,8 @@ jest.mock("@huggingface/transformers", () => ({
   },
 }));
 
+// Bypass the global mock in setup.js to test the real module
+jest.unmock("../src/services/cross_encoder");
 const crossEncoder = require("../src/services/cross_encoder");
 
 describe("Reranker (in-process)", () => {

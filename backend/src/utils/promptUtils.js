@@ -1,6 +1,19 @@
 const { createLlm } = require("../services/agent");
 
+function wordOverlapRatio(a, b) {
+  const wordsA = new Set(a.toLowerCase().split(/\s+/).filter(Boolean));
+  const wordsB = new Set(b.toLowerCase().split(/\s+/).filter(Boolean));
+  if (wordsA.size === 0 || wordsB.size === 0) return 0;
+  let common = 0;
+  for (const w of wordsA) {
+    if (wordsB.has(w)) common++;
+  }
+  return common / Math.min(wordsA.size, wordsB.size);
+}
+
 async function buildQueries(userMessage, userLanguage, vectorStore, notebookId, queryModel) {
+  if (!queryModel) return [userMessage];
+
   let roughContext = "";
   try {
     const roughDocs = await vectorStore.similaritySearchWithScore(userMessage, 4, {
@@ -50,10 +63,7 @@ ${userMessage}
   if (aiQueries.length === 0) return [userMessage];
 
   if (roughContext) {
-    aiQueries = aiQueries.filter((q) => {
-      const firstWord = q.split(" ")[0].toLowerCase();
-      return roughContext.toLowerCase().includes(firstWord);
-    });
+    aiQueries = aiQueries.filter((q) => wordOverlapRatio(q, roughContext) > 0.2);
     if (aiQueries.length === 0) return [userMessage];
   }
 

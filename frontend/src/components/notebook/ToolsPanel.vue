@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useNotebookStore } from "../../stores/notebook";
 import Spinner from "../common/Spinner.vue";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
 import QuizTool from "../tools/QuizTool.vue";
 import FlashcardsTool from "../tools/FlashcardsTool.vue";
 
@@ -9,6 +10,7 @@ const store = useNotebookStore();
 const emit = defineEmits(["open-asset"]);
 
 const openMenuId = ref(null);
+const confirmDeleteAsset = ref(null);
 
 function toggleMenu(id, e) {
   e.stopPropagation();
@@ -19,10 +21,16 @@ function closeMenu() {
   openMenuId.value = null;
 }
 
-async function handleRemove(id, e) {
+function handleRemove(a, e) {
   e.stopPropagation();
   closeMenu();
-  if (!confirm("Are you sure you want to delete this item?")) return;
+  confirmDeleteAsset.value = a;
+}
+
+async function confirmRemove() {
+  if (!confirmDeleteAsset.value) return;
+  const id = confirmDeleteAsset.value.id;
+  confirmDeleteAsset.value = null;
   await store.removeAsset(id);
 }
 
@@ -121,7 +129,7 @@ async function handleRename(a, e) {
               </button>
               <button
                 class="w-full text-left px-3 py-2 text-sm text-danger hover:bg-danger/10 transition-colors flex items-center gap-2"
-                @click="handleRemove(a.id, $event)"
+                @click="handleRemove(a, $event)"
               >
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
@@ -140,6 +148,14 @@ async function handleRename(a, e) {
         Nothing yet. The result of the model will be stored here
       </div>
     </div>
+
+    <ConfirmDialog
+      :show="!!confirmDeleteAsset"
+      title="Delete asset"
+      :message="`Are you sure you want to delete &quot;${confirmDeleteAsset?.title}&quot;?`"
+      @confirm="confirmRemove"
+      @cancel="confirmDeleteAsset = null"
+    />
   </aside>
 </template>
 

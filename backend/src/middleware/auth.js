@@ -18,8 +18,6 @@ function requireAuth(req, res, next) {
 
   if (header && header.startsWith("Bearer ")) {
     token = header.slice(7);
-  } else if (req.query && req.query.token) {
-    token = req.query.token;
   }
 
   if (!token) {

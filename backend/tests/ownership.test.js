@@ -1,7 +1,3 @@
-jest.mock("../src/db/init", () => ({
-  pool: { query: jest.fn() },
-}));
-
 const { requireNotebookOwner, requireDocumentOwner, requireAssetOwner } = require("../src/middleware/ownership");
 const { pool } = require("../src/db/init");
 

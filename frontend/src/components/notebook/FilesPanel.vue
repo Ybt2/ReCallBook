@@ -3,6 +3,7 @@ import { ref, computed } from "vue";
 import { useNotebookStore } from "../../stores/notebook";
 import { useToastStore } from "../../stores/toast";
 import Spinner from "../common/Spinner.vue";
+import ConfirmDialog from "../common/ConfirmDialog.vue";
 
 const store = useNotebookStore();
 const toasts = useToastStore();
@@ -22,6 +23,8 @@ const allSelected = computed(
     store.documents.length > 0 &&
     store.selectedDocIds.size === store.documents.length
 );
+
+const confirmDelete = ref(null);
 
 async function onUpload(e) {
   const picked = [...e.target.files];
@@ -47,8 +50,10 @@ async function onUpload(e) {
   }
 }
 
-async function remove(d) {
-  if (!confirm(`Delete "${d.name}"?`)) return;
+async function confirmRemove() {
+  if (!confirmDelete.value) return;
+  const d = confirmDelete.value;
+  confirmDelete.value = null;
   try {
     await store.removeDocument(d.id);
     toasts.success("File deleted");
@@ -141,7 +146,7 @@ async function remove(d) {
         <button
           class="btn-ghost !p-1 opacity-0 group-hover:opacity-100 text-oc-mid hover:text-danger"
           title="Delete"
-          @click="remove(d)"
+          @click="confirmDelete = d"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
@@ -163,5 +168,13 @@ async function remove(d) {
         </template>
       </button>
     </div>
+
+    <ConfirmDialog
+      :show="!!confirmDelete"
+      title="Delete file"
+      :message="`Are you sure you want to delete &quot;${confirmDelete?.name}&quot;?`"
+      @confirm="confirmRemove"
+      @cancel="confirmDelete = null"
+    />
   </aside>
 </template>

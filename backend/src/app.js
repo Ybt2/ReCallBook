@@ -2,7 +2,6 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 require('dotenv').config();
-const { initCross_encoder } = require('./services/cross_encoder.js');
 
 const { initDB } = require("./db/init");
 const { initQdrant } = require("./db/qdrant");
@@ -67,9 +66,6 @@ async function startServer() {
     // 2. Inicializar Qdrant (Verificar Coleções)
     await initQdrant();
     console.log("Qdrant Ready");
-
-    console.log("A pré-carregar modelo de reranking...");
-    await initCross_encoder();
 
     // 3. Iniciar o Express
     app.listen(PORT, () => {

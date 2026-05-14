@@ -1,8 +1,9 @@
 const express = require("express");
 const router = express.Router();
 const { pool } = require("../db/init");
+const { requireAuth } = require("../middleware/auth");
 
-router.get("/models", async (req, res, next) => {
+router.get("/models", requireAuth, async (req, res, next) => {
   try {
     const [rows] = await pool.query(
       "SELECT general_model, query_model, vision_model FROM Utilizadores WHERE ID = ? LIMIT 1",
@@ -19,7 +20,7 @@ router.get("/models", async (req, res, next) => {
   }
 });
 
-router.put("/models", async (req, res, next) => {
+router.put("/models", requireAuth, async (req, res, next) => {
   try {
     const { general_model, query_model, vision_model } = req.body;
     await pool.query(

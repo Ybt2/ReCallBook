@@ -8,6 +8,7 @@ const { appendLog, consoleLog } = require("../utils/logger");
 const { buildNotebookFilter } = require("../utils/validation");
 const { AppError } = require("../middleware/errorHandler");
 const { requireNotebookOwner, requireAssetOwner } = require("../middleware/ownership");
+const { quizGenerateSchema, flashcardGenerateSchema, validate } = require("../utils/validationSchemas");
 
 async function getContextFromPrompt(notebookId, docIds, query) {
   const vectorStore = await getVectorStore();
@@ -41,8 +42,11 @@ async function getRandomContext(notebookId, docIds) {
     } catch (_) {}
   }
   if (chunks.length === 0) throw new AppError("No content found to generate the resource.", "NO_CONTENT", 404);
-  const shuffled = chunks.sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 15).join("\n\n");
+  for (let i = chunks.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [chunks[i], chunks[j]] = [chunks[j], chunks[i]];
+  }
+  return chunks.slice(0, 15).join("\n\n");
 }
 
 async function saveAsset(notebookId, type, data, meta = {}) {
@@ -167,7 +171,7 @@ router.patch("/:id", requireAssetOwner, async (req, res, next) => {
 });
 
 // POST /api/tools/quiz
-router.post("/quiz", async (req, res, next) => {
+router.post("/quiz", validate(quizGenerateSchema), async (req, res, next) => {
   try {
     const { notebookId, docIds, prompt, numQuestions = 5, difficulty = "medium", model } = req.body;
 
@@ -203,7 +207,7 @@ router.post("/quiz", async (req, res, next) => {
 });
 
 // POST /api/tools/flashcards
-router.post("/flashcards", async (req, res, next) => {
+router.post("/flashcards", validate(flashcardGenerateSchema), async (req, res, next) => {
   try {
     const { notebookId, docIds, prompt, numCards = 10, difficulty = "medium", model } = req.body;
 

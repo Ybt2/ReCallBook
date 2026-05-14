@@ -18,11 +18,15 @@ export const DocumentsAPI = {
       .then((r) => r.data);
   },
   remove: (id) => api.delete(`/documents/${id}`).then((r) => r.data),
-  fileUrl: (id, page) => {
-    const token = localStorage.getItem("recallbook.token");
-    const qs = token ? `?token=${encodeURIComponent(token)}` : "";
-    return page
-      ? `${API_BASE_URL}/documents/${id}/file${qs}#page=${page}`
-      : `${API_BASE_URL}/documents/${id}/file${qs}`;
+  async fetchBlob(id) {
+    const res = await api.get(`/documents/${id}/file`, { responseType: "blob" });
+    return res.data;
+  },
+  async fetchObjectUrl(id) {
+    const blob = await this.fetchBlob(id);
+    return URL.createObjectURL(blob);
+  },
+  getDirectUrl(id) {
+    return `${API_BASE_URL}/documents/${id}/file`;
   },
 };

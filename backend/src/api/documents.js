@@ -6,6 +6,7 @@ const { parseImage, isImageFile, getImageType } = require("../services/vision");
 const { appendLog, consoleLog } = require("../utils/logger");
 const { AppError } = require("../middleware/errorHandler");
 const { requireNotebookOwner, requireDocumentOwner } = require("../middleware/ownership");
+const { uploadSchema, validate } = require("../utils/validationSchemas");
 
 const express = require("express");
 const multer = require("multer");
@@ -18,6 +19,15 @@ const UPLOAD_DIR = path.join(__dirname, "..", "..", "uploads");
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 const TMP_DIR = path.join(UPLOAD_DIR, "tmp");
 if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+
+// Clean stale temp files on startup
+try {
+  const tmpFiles = fs.readdirSync(TMP_DIR);
+  for (const f of tmpFiles) {
+    const fp = path.join(TMP_DIR, f);
+    try { fs.unlinkSync(fp); } catch (_) {}
+  }
+} catch (_) {}
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 
@@ -64,7 +74,7 @@ const MIME_MAP = {
 };
 
 // POST /api/documents/upload
-router.post("/upload", upload.single("file"), async (req, res, next) => {
+router.post("/upload", upload.single("file"), validate(uploadSchema), async (req, res, next) => {
   let storedPath = null;
   try {
     const { notebookId } = req.body;

@@ -5,15 +5,14 @@ const { pool } = require("../db/init");
 const { appendLog, consoleLog } = require("../utils/logger");
 const { signToken, requireAuth } = require("../middleware/auth");
 const { AppError } = require("../middleware/errorHandler");
+const { registerSchema, loginSchema, validate } = require("../utils/validationSchemas");
 
+// Keep in sync with frontend src/stores/auth.js SUPPORTED_LANGUAGES
 const SUPPORTED_LANGUAGES = ["English","Portuguese","Spanish","French","German","Italian","Chinese","Japanese","Korean","Dutch","Polish","Russian","Arabic","Hindi"];
 
 // POST /api/auth/register
-router.post("/register", async (req, res, next) => {
+router.post("/register", validate(registerSchema), async (req, res, next) => {
   const { username, email, password, language = "English" } = req.body;
-  if (!username || !email || !password) {
-    return next(new AppError("username, email and password are required.", "VALIDATION_ERROR", 400));
-  }
 
   const lang = SUPPORTED_LANGUAGES.includes(language) ? language : "English";
 
@@ -43,11 +42,8 @@ router.post("/register", async (req, res, next) => {
 });
 
 // POST /api/auth/login
-router.post("/login", async (req, res, next) => {
+router.post("/login", validate(loginSchema), async (req, res, next) => {
   const { email, password } = req.body;
-  if (!email || !password) {
-    return next(new AppError("Email and password are required.", "VALIDATION_ERROR", 400));
-  }
 
   try {
     const [rows] = await pool.query(
@@ -94,6 +90,39 @@ router.put("/profile", requireAuth, async (req, res, next) => {
   try {
     await pool.query("UPDATE Utilizadores SET language = ? WHERE ID = ?", [language, req.user.id]);
     res.json({ message: "Profile updated.", language });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// PUT /api/auth/password
+router.put("/password", requireAuth, async (req, res, next) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return next(new AppError("currentPassword and newPassword are required.", "VALIDATION_ERROR", 400));
+  }
+  if (newPassword.length < 4) {
+    return next(new AppError("New password must be at least 4 characters.", "VALIDATION_ERROR", 400));
+  }
+
+  try {
+    const [rows] = await pool.query(
+      "SELECT password FROM Utilizadores WHERE ID = ? LIMIT 1",
+      [req.user.id]
+    );
+    if (rows.length === 0) {
+      return next(new AppError("User not found.", "NOT_FOUND", 404));
+    }
+
+    const stored = rows[0].password || "";
+    const ok = await bcrypt.compare(currentPassword, stored);
+    if (!ok) {
+      return next(new AppError("Current password is incorrect.", "INVALID_CREDENTIALS", 401));
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await pool.query("UPDATE Utilizadores SET password = ? WHERE ID = ?", [hashed, req.user.id]);
+    res.json({ message: "Password updated." });
   } catch (err) {
     next(err);
   }

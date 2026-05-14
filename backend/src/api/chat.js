@@ -183,9 +183,10 @@ router.post("/stream", async (req, res) => {
     return res.status(400).json({ error: "notebookId and mensagem are required.", code: "VALIDATION_ERROR", status: 400 });
   }
 
-  const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
-  if (nbRows.length === 0) return res.status(404).json({ error: "Notebook not found.", code: "NOT_FOUND", status: 404 });
-  if (nbRows[0].utilizadores_ID !== req.user.id) return res.status(403).json({ error: "Access denied.", code: "FORBIDDEN", status: 403 });
+  try {
+    const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
+    if (nbRows.length === 0) return res.status(404).json({ error: "Notebook not found.", code: "NOT_FOUND", status: 404 });
+    if (nbRows[0].utilizadores_ID !== req.user.id) return res.status(403).json({ error: "Access denied.", code: "FORBIDDEN", status: 403 });
 
     const userModels = await getUserModels(req.user.id);
     const chatModel = model || userModels.general_model;
@@ -194,34 +195,28 @@ router.post("/stream", async (req, res) => {
       return res.status(400).json({ error: "No model configured. Please configure a model in your settings.", code: "NO_MODEL", status: 400 });
     }
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache, no-transform");
-  res.setHeader("Connection", "keep-alive");
-  res.setHeader("X-Accel-Buffering", "no");
-  res.flushHeaders?.();
-
-  const send = (event, data) => {
-    const payload = JSON.stringify(data);
-    console.log(`[SSE send] event=${event} data=${payload.slice(0, 200)}`);
-    res.write(`event: ${event}\n`);
-    res.write(`data: ${payload}\n\n`);
-    if (typeof res.flush === "function") res.flush();
-  };
-
-  let closed = false;
-  res.on("close", () => { closed = true; });
-  res.on("finish", () => { closed = true; });
-  req.on("aborted", () => { closed = true; });
-
-  try {
     const [[uRow]] = await pool.query("SELECT language FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
     const userLanguage = uRow?.language || "English";
 
     if (editMessageId) {
-      await pool.query(
-        "UPDATE Mensagens SET is_deleted = 1 WHERE notebooks_ID = ? AND id >= ?",
+      const [msgRows] = await pool.query(
+        "SELECT ID FROM Mensagens WHERE notebooks_ID = ? AND ID = ? AND is_deleted = 0 LIMIT 1",
         [notebookId, editMessageId]
       );
+      if (msgRows.length > 0) {
+        await pool.query(
+          "UPDATE Mensagens SET is_deleted = 1 WHERE notebooks_ID = ? AND ID = ?",
+          [notebookId, editMessageId]
+        );
+        await pool.query(
+          `UPDATE Mensagens SET is_deleted = 1
+           WHERE notebooks_ID = ? AND role = 'assistant' AND id > ? AND id < (
+             SELECT COALESCE(MIN(sub.id), 999999999)
+             FROM (SELECT id FROM Mensagens WHERE notebooks_ID = ? AND role = 'utilizador' AND id > ? AND is_deleted = 0) sub
+           )`,
+          [notebookId, editMessageId, notebookId, editMessageId]
+        );
+      }
     }
 
     const [rows] = await pool.query(
@@ -233,22 +228,37 @@ router.post("/stream", async (req, res) => {
       .map((m) => `${m.role === "utilizador" ? "User" : "Assistant"}: ${m.conteudo}`)
       .join("\n");
 
-    // Persist the user message first so the UI will reload it with real IDs
+    // Only now we flush SSE headers — all preliminary work succeeded
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache, no-transform");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    const send = (event, data) => {
+      const payload = JSON.stringify(data);
+      res.write(`event: ${event}\n`);
+      res.write(`data: ${payload}\n\n`);
+      if (typeof res.flush === "function") res.flush();
+    };
+
+    let closed = false;
+    res.on("close", () => { closed = true; });
+    res.on("finish", () => { closed = true; });
+    req.on("aborted", () => { closed = true; });
+
     const [userIns] = await pool.query(
       "INSERT INTO Mensagens (notebooks_ID, role, conteudo) VALUES (?, 'utilizador', ?)",
       [notebookId, mensagem]
     );
     send("user_saved", { id: userIns.insertId });
 
-    console.log("[stream route] calling chatWithAi with opts containing onStage and onToken");
     const aiResponse = await chatWithAi(notebookId, mensagem, history, docIds, {
       model: chatModel,
       queryModel: chatQueryModel,
       userLanguage,
       onStage: (stage, info = {}) => {
-        console.log("[stream route] onStage callback fired:", stage);
         if (!closed) send("stage", { stage, ...info });
-        else console.log("[stream route] connection closed, skipping stage:", stage);
       },
       onToken: (token) => {
         if (!closed) send("token", { token });
@@ -281,13 +291,6 @@ router.post("/stream", async (req, res) => {
       processingTime: elapsedSecs.toFixed(2),
     });
 
-    consoleLog("chat", "stream_done", {
-      notebookId,
-      model: usedModel,
-      tokens: totalTokens,
-      time: elapsedSecs.toFixed(2),
-    });
-
     send("done", {
       id: result.insertId,
       content: aiResponse.texto_final,
@@ -299,8 +302,12 @@ router.post("/stream", async (req, res) => {
     res.end();
   } catch (error) {
     console.error("Stream error:", error);
-    try { send("error", { message: "An error occurred while processing the stream." }); } catch (_) {}
-    res.end();
+    if (res.headersSent) {
+      try { res.write(`event: error\ndata: ${JSON.stringify({ message: "An error occurred while processing the stream." })}\n\n`); } catch (_) {}
+      res.end();
+    } else {
+      res.status(500).json({ error: "An error occurred.", code: "STREAM_ERROR", status: 500 });
+    }
   }
 });
 

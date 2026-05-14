@@ -16,7 +16,18 @@ const colors = [
   "from-purple-400 to-indigo-500",
   "from-sky-400 to-cyan-500",
 ];
-const color = computed(() => colors[props.notebook.id % colors.length]);
+
+function hashId(id) {
+  const s = String(id);
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
+}
+
+const color = computed(() => colors[hashId(props.notebook.id) % colors.length]);
 </script>
 
 <template>

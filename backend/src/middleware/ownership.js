@@ -11,7 +11,7 @@ async function requireNotebookOwner(req, res, next) {
       [notebookId]
     );
     if (rows.length === 0) {
-      return next(new AppError("Notebook não encontrado.", "NOT_FOUND", 404));
+      return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
     }
     if (rows[0].utilizadores_ID !== req.user.id) {
       return next(new AppError("Access denied.", "FORBIDDEN", 403));
@@ -35,7 +35,7 @@ async function requireDocumentOwner(req, res, next) {
       [docId]
     );
     if (rows.length === 0) {
-      return next(new AppError("Documento não encontrado.", "NOT_FOUND", 404));
+      return next(new AppError("Document not found.", "NOT_FOUND", 404));
     }
     if (rows[0].utilizadores_ID !== req.user.id) {
       return next(new AppError("Access denied.", "FORBIDDEN", 403));
@@ -58,7 +58,7 @@ async function requireAssetOwner(req, res, next) {
       [assetId]
     );
     if (rows.length === 0) {
-      return next(new AppError("Recurso não encontrado.", "NOT_FOUND", 404));
+      return next(new AppError("Asset not found.", "NOT_FOUND", 404));
     }
     if (rows[0].utilizadores_ID !== req.user.id) {
       return next(new AppError("Access denied.", "FORBIDDEN", 403));

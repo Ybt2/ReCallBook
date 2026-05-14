@@ -1,53 +1,6 @@
 const request = require("supertest");
 const { signToken } = require("../src/middleware/auth");
 
-jest.mock("../src/db/init", () => ({
-  pool: { query: jest.fn() },
-  initDB: jest.fn(),
-}));
-jest.mock("../src/db/qdrant", () => ({
-  initQdrant: jest.fn(),
-  getQdrantClient: jest.fn(() => ({})),
-  getVectorStore: jest.fn(),
-  client: { delete: jest.fn(), scroll: jest.fn(), getCollections: jest.fn() },
-  COLLECTION_NAME: "test_collection",
-}));
-jest.mock("../src/services/cross_encoder", () => ({
-  initCross_encoder: jest.fn(),
-  rerank: jest.fn(),
-}));
-jest.mock("../src/services/embeddings", () => ({
-  getEmbeddings: jest.fn(() => ({ embedQuery: jest.fn(() => [0.1, 0.2]) })),
-}));
-jest.mock("../src/utils/logger", () => ({
-  appendLog: jest.fn(),
-  consoleLog: jest.fn(),
-  entry: jest.fn(),
-}));
-jest.mock("../src/services/chatService", () => ({
-  chatWithAi: jest.fn(),
-}));
-jest.mock("../src/utils/promptUtils", () => ({
-  generateAnswer: jest.fn(),
-  streamAnswer: jest.fn(),
-  detectLanguage: jest.fn(() => "English"),
-}));
-jest.mock("../src/utils/searchUtils", () => ({
-  searchDocuments: jest.fn(() => []),
-}));
-jest.mock("../src/services/agent", () => ({
-  llm: { withStructuredOutput: jest.fn(() => ({})) },
-  llmQueryBuilder: {},
-  createLlm: jest.fn(() => ({ withStructuredOutput: jest.fn(() => ({})) })),
-}));
-jest.mock("../src/services/tools/quizTool", () => ({
-  generateQuizAction: jest.fn(),
-}));
-jest.mock("../src/services/tools/flashcardTool", () => ({
-  generateFlashcardsAction: jest.fn(),
-}));
-jest.mock("uuid", () => ({ v4: jest.fn(() => "00000000-0000-0000-0000-000000000000") }));
-
 const app = require("../src/app");
 
 const validToken = signToken({ id: 1, username: "tester", email: "t@t.com" });

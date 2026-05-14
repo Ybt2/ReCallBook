@@ -48,7 +48,6 @@ async function generate() {
       difficulty: difficulty.value,
     });
     if (completed) toasts.success("Quiz generated");
-    prompt.value = "";
   } catch (e) {
     toasts.error(e.message);
   }
