@@ -3,6 +3,7 @@ import { NotebooksAPI } from "../api/notebooks";
 import { DocumentsAPI } from "../api/documents";
 import { ChatAPI } from "../api/chat";
 import { ToolsAPI } from "../api/tools";
+import { useModelStore } from "./models";
 
 export const useNotebookStore = defineStore("notebook", {
   state: () => ({
@@ -11,7 +12,7 @@ export const useNotebookStore = defineStore("notebook", {
     selectedDocIds: new Set(),
     messages: [],
     assets: [],
-    selectedModel: localStorage.getItem("rb.model") || "",
+    selectedModel: "",
     streaming: null, // { id, content, stages:[{key,label,state}], model }
     streamAbortController: null,
     toolAbortController: null,
@@ -93,7 +94,8 @@ export const useNotebookStore = defineStore("notebook", {
     async uploadDocument(file, onProgress) {
       this.loading.upload = true;
       try {
-        await DocumentsAPI.upload(this.notebook.id, file, onProgress);
+        const modelStore = useModelStore();
+        await DocumentsAPI.upload(this.notebook.id, file, onProgress, modelStore.visionModel || undefined);
         await this.fetchDocuments(this.notebook.id);
       } finally {
         this.loading.upload = false;
@@ -149,12 +151,15 @@ export const useNotebookStore = defineStore("notebook", {
 
       try {
         console.log("[Store.sendMessage] calling ChatAPI.stream");
+        const modelStore = useModelStore();
+        const chatModel = this.selectedModel || modelStore.generalModel || undefined;
         await ChatAPI.stream(
           {
             notebookId: this.notebook.id,
             mensagem: text,
             docIds: this.activeDocIds.length ? this.activeDocIds : null,
-            model: this.selectedModel || undefined,
+            model: chatModel,
+            queryModel: modelStore.queryModel || modelStore.generalModel || undefined,
             ...(editMessageId ? { editMessageId } : {}),
           },
           {
@@ -290,6 +295,9 @@ export const useNotebookStore = defineStore("notebook", {
 
     async generateTool({ type, prompt, count, difficulty }) {
       if (!this.notebook || this.isGenerating) return;
+      const modelStore = useModelStore();
+      const toolModel = modelStore.generalModel;
+      if (!toolModel) throw new Error("No model configured. Go to Settings to configure a model.");
       this.loading.tool = true;
       this.isGenerating = true;
       this.generatingToolType = type;
@@ -305,7 +313,7 @@ export const useNotebookStore = defineStore("notebook", {
             prompt,
             numQuestions: count,
             difficulty,
-            model: this.selectedModel || undefined,
+            model: toolModel,
             signal,
           });
         } else {
@@ -315,7 +323,7 @@ export const useNotebookStore = defineStore("notebook", {
             prompt,
             numCards: count,
             difficulty,
-            model: this.selectedModel || undefined,
+            model: toolModel,
             signal,
           });
         }
@@ -343,15 +351,6 @@ export const useNotebookStore = defineStore("notebook", {
         this.generatingToolType = null;
         this.toolAbortController = null;
       }
-    },
-
-    async pinMessage(message) {
-      if (!this.notebook || !message?.content) return;
-      await ToolsAPI.saveNote({
-        notebookId: this.notebook.id,
-        content: message.content,
-      });
-      await this.fetchAssets(this.notebook.id);
     },
 
     async removeAsset(id) {

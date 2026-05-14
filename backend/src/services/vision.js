@@ -4,7 +4,7 @@ const { HumanMessage } = require("@langchain/core/messages");
 const fs = require("fs");
 const path = require("path");
 
-const { llmvision } = require("./agent");
+const { createLlm } = require("./agent");
 
 const IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".svg"];
 
@@ -39,16 +39,17 @@ function getImageType(filename) {
   return EXT_TO_TYPE[ext] || "image";
 }
 
-async function processImage(filePath) {
+async function processImage(filePath, visionModel) {
   const imageBuffer = fs.readFileSync(filePath);
   const base64Image = imageBuffer.toString("base64");
   const ext = path.extname(filePath).toLowerCase();
   const mimeType = ext === ".png" ? "image/png" : ext === ".svg" ? "image/svg+xml" : "image/jpeg";
 
-  return processImageBase64(base64Image, mimeType);
+  return processImageBase64(base64Image, mimeType, visionModel);
 }
 
-async function processImageBase64(base64, mimeType = "image/png") {
+async function processImageBase64(base64, mimeType = "image/png", visionModel) {
+  if (!visionModel) return "";
   const message = new HumanMessage({
     content: [
       { type: "text", text: VISION_PROMPT },
@@ -56,12 +57,13 @@ async function processImageBase64(base64, mimeType = "image/png") {
     ],
   });
 
-  const response = await llmvision.invoke([message]);
+  const lm = createLlm(visionModel);
+  const response = await lm.invoke([message]);
   return (response.content || "").trim();
 }
 
-async function parseImage(filePath, notebookId, docId, originalname) {
-  const extractedText = await processImage(filePath);
+async function parseImage(filePath, notebookId, docId, originalname, visionModel) {
+  const extractedText = await processImage(filePath, visionModel);
   const sourceType = getImageType(originalname);
 
   console.log(`Image Vision [${sourceType}]: ${originalname} | ${extractedText.length} chars`);

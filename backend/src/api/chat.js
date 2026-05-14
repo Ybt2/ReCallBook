@@ -5,8 +5,18 @@ const { chatWithAi } = require("../services/chatService");
 const { appendLog, consoleLog } = require("../utils/logger");
 const { AppError } = require("../middleware/errorHandler");
 
-
-const DEFAULT_MODEL = process.env.DEFAULT_MODEL || "qwen3:14b";
+async function getUserModels(userId) {
+  const [rows] = await pool.query(
+    "SELECT general_model, query_model, vision_model FROM Utilizadores WHERE ID = ? LIMIT 1",
+    [userId]
+  );
+  if (rows.length === 0) return { general_model: null, query_model: null, vision_model: null };
+  return {
+    general_model: rows[0].general_model || null,
+    query_model: rows[0].query_model || null,
+    vision_model: rows[0].vision_model || null,
+  };
+}
 
 function secsToTime(secs) {
   const s = Math.round(Number(secs));
@@ -95,7 +105,7 @@ router.get("/messages", async (req, res, next) => {
 // POST /api/chat/pergunta (non-streaming, kept for compatibility)
 router.post("/pergunta", async (req, res, next) => {
   const startTime = Date.now();
-  const { notebookId, mensagem, docIds, model } = req.body;
+  const { notebookId, mensagem, docIds, model, queryModel } = req.body;
 
   const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
   if (nbRows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
@@ -104,6 +114,11 @@ router.post("/pergunta", async (req, res, next) => {
   try {
     const [[uRow]] = await pool.query("SELECT language FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
     const userLanguage = uRow?.language || "English";
+
+    const userModels = await getUserModels(req.user.id);
+    const chatModel = model || userModels.general_model;
+    const chatQueryModel = queryModel || userModels.query_model || userModels.general_model;
+    if (!chatModel) return next(new AppError("No model configured. Please configure a model in your settings.", "NO_MODEL", 400));
 
     const [rows] = await pool.query(
       "SELECT role, conteudo FROM Mensagens WHERE notebooks_ID = ? AND is_deleted = 0 ORDER BY created_at DESC LIMIT 6",
@@ -114,10 +129,10 @@ router.post("/pergunta", async (req, res, next) => {
       .map((m) => `${m.role === "utilizador" ? "User" : "Assistant"}: ${m.conteudo}`)
       .join("\n");
 
-    const aiResponse = await chatWithAi(notebookId, mensagem, history, docIds, { model, userLanguage });
+    const aiResponse = await chatWithAi(notebookId, mensagem, history, docIds, { model: chatModel, queryModel: chatQueryModel, userLanguage });
     const elapsedSecs = (Date.now() - startTime) / 1000;
     const tempoProc = secsToTime(elapsedSecs);
-    const usedModel = aiResponse.model || model || DEFAULT_MODEL;
+    const usedModel = aiResponse.model || chatModel;
     const totalTokens = aiResponse.usage?.totalTokens ?? 0;
 
     await pool.query(
@@ -162,7 +177,7 @@ router.post("/pergunta", async (req, res, next) => {
 // POST /api/chat/stream  -> Server-Sent Events (stages + tokens + done)
 router.post("/stream", async (req, res) => {
   const startTime = Date.now();
-  const { notebookId, mensagem, docIds, model, editMessageId } = req.body;
+  const { notebookId, mensagem, docIds, model, editMessageId, queryModel } = req.body;
 
   if (!notebookId || !mensagem) {
     return res.status(400).json({ error: "notebookId and mensagem are required.", code: "VALIDATION_ERROR", status: 400 });
@@ -171,6 +186,13 @@ router.post("/stream", async (req, res) => {
   const [nbRows] = await pool.query("SELECT utilizadores_ID FROM NoteBooks WHERE ID = ? LIMIT 1", [notebookId]);
   if (nbRows.length === 0) return res.status(404).json({ error: "Notebook not found.", code: "NOT_FOUND", status: 404 });
   if (nbRows[0].utilizadores_ID !== req.user.id) return res.status(403).json({ error: "Access denied.", code: "FORBIDDEN", status: 403 });
+
+    const userModels = await getUserModels(req.user.id);
+    const chatModel = model || userModels.general_model;
+    const chatQueryModel = queryModel || userModels.query_model || userModels.general_model;
+    if (!chatModel) {
+      return res.status(400).json({ error: "No model configured. Please configure a model in your settings.", code: "NO_MODEL", status: 400 });
+    }
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache, no-transform");
@@ -220,7 +242,8 @@ router.post("/stream", async (req, res) => {
 
     console.log("[stream route] calling chatWithAi with opts containing onStage and onToken");
     const aiResponse = await chatWithAi(notebookId, mensagem, history, docIds, {
-      model,
+      model: chatModel,
+      queryModel: chatQueryModel,
       userLanguage,
       onStage: (stage, info = {}) => {
         console.log("[stream route] onStage callback fired:", stage);
@@ -234,7 +257,7 @@ router.post("/stream", async (req, res) => {
 
     const elapsedSecs = (Date.now() - startTime) / 1000;
     const tempoProc = secsToTime(elapsedSecs);
-    const usedModel = aiResponse.model || model || DEFAULT_MODEL;
+    const usedModel = aiResponse.model || chatModel;
     const totalTokens = aiResponse.usage?.totalTokens ?? 0;
 
     const [result] = await pool.query(

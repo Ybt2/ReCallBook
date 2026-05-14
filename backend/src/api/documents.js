@@ -76,6 +76,7 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
     if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
     const { path: tmpPath, originalname } = req.file;
+    const { visionModel } = req.body;
     const safeName = sanitizeFilename(originalname);
     const docId = uuidv4();
     const ext = path.extname(safeName).toLowerCase();
@@ -89,7 +90,20 @@ router.post("/upload", upload.single("file"), async (req, res, next) => {
 
     let chunks, summary;
     if (isImage) {
-      ({ chunks, summary } = await parseImage(storedPath, notebookId, docId, safeName));
+      if (!visionModel) {
+        const [uRow] = await pool.query("SELECT vision_model FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
+        const userVisionModel = uRow[0]?.vision_model || null;
+        if (userVisionModel) {
+          ({ chunks, summary } = await parseImage(storedPath, notebookId, docId, safeName, userVisionModel));
+        } else {
+          const rawText = `[Image: ${safeName} — No vision model configured. Image stored without description.]`;
+          const { Document } = require("@langchain/core/documents");
+          chunks = [new Document({ pageContent: rawText, metadata: { notebookId: String(notebookId), docId, source_type: getImageType(safeName), source_name: safeName, source_ref: "Imagem", chunk_index: 0 } })];
+          summary = { totalPages: 1, totalChunks: 1, fileName: safeName, avgChunkSize: rawText.length };
+        }
+      } else {
+        ({ chunks, summary } = await parseImage(storedPath, notebookId, docId, safeName, visionModel));
+      }
     } else if (isText) {
       ({ chunks, summary } = await parseText(storedPath, notebookId, docId, safeName));
     } else {

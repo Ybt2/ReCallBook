@@ -5,10 +5,11 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "/api";
 export const DocumentsAPI = {
   list: (notebookId, { page = 1, limit = 100 } = {}) =>
     api.get("/documents", { params: { notebookId, page, limit } }).then((r) => r.data),
-  upload: (notebookId, file, onProgress) => {
+  upload: (notebookId, file, onProgress, visionModel) => {
     const form = new FormData();
     form.append("notebookId", notebookId);
     form.append("file", file);
+    if (visionModel) form.append("visionModel", visionModel);
     return api
       .post("/documents/upload", form, {
         headers: { "Content-Type": "multipart/form-data" },

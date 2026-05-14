@@ -30,6 +30,26 @@ router.get("/models", async (req, res) => {
   }
 });
 
+// POST /api/ollama/show  -> get model details (capabilities)
+router.post("/show", async (req, res) => {
+  try {
+    const { model } = req.body;
+    if (!model) return res.status(400).json({ error: "model is required." });
+
+    const r = await doFetch(`${OLLAMA_URL}/api/show`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+    });
+    if (!r.ok) throw new Error(`Ollama responded ${r.status}`);
+    const json = await r.json();
+    res.json(json);
+  } catch (err) {
+    console.error("[ollama] show failed:", err.message);
+    res.status(502).json({ error: `Ollama unavailable: ${err.message}` });
+  }
+});
+
 // POST /api/ollama/pull  -> SSE-stream install progress
 // body: { name: "llama3.2:3b" }
 router.post("/pull", async (req, res) => {

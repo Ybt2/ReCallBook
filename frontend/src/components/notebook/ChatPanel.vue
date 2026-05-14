@@ -1,12 +1,14 @@
 <script setup>
 import { ref, nextTick, watch, computed, onMounted } from "vue";
 import { useNotebookStore } from "../../stores/notebook";
+import { useModelStore } from "../../stores/models";
 import { useToastStore } from "../../stores/toast";
 import { OllamaAPI } from "../../api/ollama";
 import Spinner from "../common/Spinner.vue";
 import ChatMessage from "./ChatMessage.vue";
 
 const store = useNotebookStore();
+const modelStore = useModelStore();
 const toasts = useToastStore();
 const emit = defineEmits(["open-source"]);
 
@@ -30,7 +32,8 @@ const disabled = computed(
     !store.notebook ||
     store.isGenerating ||
     store.loading.upload ||
-    !store.selectedDocIds.size
+    !store.selectedDocIds.size ||
+    (!store.selectedModel && !modelStore.hasModels)
 );
 
 const lastUserMsgId = computed(() => {
@@ -40,13 +43,12 @@ const lastUserMsgId = computed(() => {
 
 const editDisabled = computed(() => !!store.streaming || !!store.loading.upload);
 
-const currentModel = computed(() => store.selectedModel || models.value[0]?.name || "default");
+const currentModel = computed(() => store.selectedModel || modelStore.generalModel || models.value[0]?.name || "No model configured");
 
 async function loadModels() {
   loadingModels.value = true;
   try {
     models.value = await OllamaAPI.list();
-    if (!store.selectedModel && models.value[0]) store.setModel(models.value[0].name);
   } catch (e) {
     // silent — Ollama may be offline
   } finally {
@@ -69,6 +71,10 @@ async function submit() {
   if (disabled.value) return;
   if (store.selectedModel && models.value.length && !models.value.some((m) => m.name === store.selectedModel)) {
     toasts.error(`Model "${store.selectedModel}" is not available. Please select a valid model.`);
+    return;
+  }
+  if (!store.selectedModel && !modelStore.hasModels) {
+    toasts.error("No model configured. Go to Settings to configure a model.");
     return;
   }
   const text = input.value;
@@ -103,7 +109,7 @@ async function saveEditLast() {
 }
 
 function pickModel(name) {
-  store.setModel(name);
+  store.setModel(name === "__general__" ? "" : name);
   showModelMenu.value = false;
 }
 
@@ -240,7 +246,7 @@ async function pinMessage(message) {
             rows="1"
             class="w-full bg-transparent text-sm text-oc-light placeholder-oc-mid px-4 pt-3 pb-2 resize-none max-h-40 outline-none border-none focus:ring-0"
             :class="{ 'opacity-50 cursor-not-allowed': store.isGenerating || store.loading.upload || !store.documents.length }"
-            :placeholder="store.loading.upload ? 'Uploading files…' : (!store.documents.length ? 'Upload at least one document to start chatting…' : (store.isGenerating ? 'Generating…' : 'Ask about your sources…'))"
+            :placeholder="store.loading.upload ? 'Uploading files…' : (!store.documents.length ? 'Upload at least one document to start chatting…' : (store.isGenerating ? 'Generating…' : (!store.selectedModel && !modelStore.hasModels ? 'Configure models in Settings to start chatting…' : 'Ask about your sources…')))"
             :disabled="store.isGenerating || store.loading.upload || !store.documents.length"
             @keydown="onKey"
           />
@@ -277,6 +283,15 @@ async function pinMessage(message) {
                 <div v-if="!models.length" class="text-xs text-oc-mid px-2 py-1">
                   No models found. Install one below.
                 </div>
+                <button
+                  type="button"
+                  class="w-full text-left px-2 py-1.5 rounded-btn text-sm hover:bg-oc-dark flex items-center justify-between"
+                  :class="!store.selectedModel ? 'bg-oc-dark text-brand-500' : 'text-oc-mid'"
+                  @click="pickModel('__general__')"
+                >
+                  <span class="truncate">General (from settings)</span>
+                  <span v-if="modelStore.generalModel" class="text-[10px] text-oc-mid ml-2">{{ modelStore.generalModel }}</span>
+                </button>
                 <button
                   v-for="m in models"
                   :key="m.name"

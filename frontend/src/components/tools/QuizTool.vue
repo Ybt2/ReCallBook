@@ -1,11 +1,13 @@
 <script setup>
 import { ref } from "vue";
 import { useNotebookStore } from "../../stores/notebook";
+import { useModelStore } from "../../stores/models";
 import { useToastStore } from "../../stores/toast";
 import Spinner from "../common/Spinner.vue";
 import AppModal from "../common/AppModal.vue";
 
 const store = useNotebookStore();
+const modelStore = useModelStore();
 const toasts = useToastStore();
 
 const showConfig = ref(false);
@@ -22,6 +24,10 @@ const countOptions = [
 function openConfig() {
   if (!store.selectedDocIds.size) {
     toasts.error("Select at least one document first.");
+    return;
+  }
+  if (!modelStore.hasModels) {
+    toasts.error("No model configured. Go to Settings to configure a model.");
     return;
   }
   if (store.isGenerating || store.streaming) {
@@ -70,7 +76,7 @@ function stopGeneration() {
     <button
       v-else
       class="w-full py-2 rounded-btn text-sm border border-warm bg-oc-dark text-oc-mid hover:bg-oc-surface hover:text-oc-light flex flex-col items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-oc-dark disabled:hover:text-oc-mid transition-colors duration-fast"
-      :disabled="!store.selectedDocIds.size || store.isGenerating || store.streaming"
+      :disabled="!store.selectedDocIds.size || store.isGenerating || store.streaming || !modelStore.hasModels"
       @click="openConfig"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

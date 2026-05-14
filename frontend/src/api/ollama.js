@@ -11,6 +11,7 @@ function getAuthHeaders() {
 
 export const OllamaAPI = {
   list: () => api.get("/ollama/models").then((r) => r.data.models || []),
+  show: (model) => api.post("/ollama/show", { model }).then((r) => r.data),
 
   /**
    * Pull a model with SSE progress callbacks.

@@ -1,5 +1,5 @@
 const { z } = require("zod");
-const { llm, createLlm } = require("../agent");
+const { createLlm } = require("../agent");
 
 const FlashcardSchema = z.object({
   flashcards: z.array(
@@ -12,7 +12,8 @@ const FlashcardSchema = z.object({
 });
 
 async function generateFlashcardsAction(context, numCards = 10, difficulty = "medium", userPrompt = "", model, userLanguage = "English") {
-  const lm = model ? createLlm(model) : llm;
+  if (!model) throw new Error("No model configured for flashcard generation.");
+  const lm = createLlm(model);
   const structuredLlm = lm.withStructuredOutput(FlashcardSchema);
 
   const focus = userPrompt?.trim()

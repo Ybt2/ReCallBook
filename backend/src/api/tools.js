@@ -175,14 +175,16 @@ router.post("/quiz", async (req, res, next) => {
     if (nbRows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
     if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
-    const [[uRow]] = await pool.query("SELECT language FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
+    const [[uRow]] = await pool.query("SELECT language, general_model FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
     const userLanguage = uRow?.language || "English";
+    const userModel = model || uRow?.general_model || null;
+    if (!userModel) return next(new AppError("No model configured. Please configure a model in your settings.", "NO_MODEL", 400));
 
     const context = prompt?.trim()
       ? await getContextFromPrompt(notebookId, docIds, prompt.trim())
       : await getRandomContext(notebookId, docIds);
 
-    const quiz = await generateQuizAction(context, numQuestions, difficulty, prompt, model || undefined, userLanguage);
+    const quiz = await generateQuizAction(context, numQuestions, difficulty, prompt, userModel, userLanguage);
 
     const title = prompt?.trim() ? `Quiz: ${prompt.slice(0, 40)}` : `Quiz (${numQuestions} questions)`;
     const id = await saveAsset(notebookId, "quiz", quiz, { title, prompt, numQuestions, difficulty });
@@ -209,14 +211,16 @@ router.post("/flashcards", async (req, res, next) => {
     if (nbRows.length === 0) return next(new AppError("Notebook not found.", "NOT_FOUND", 404));
     if (nbRows[0].utilizadores_ID !== req.user.id) return next(new AppError("Access denied.", "FORBIDDEN", 403));
 
-    const [[uRow]] = await pool.query("SELECT language FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
+    const [[uRow]] = await pool.query("SELECT language, general_model FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
     const userLanguage = uRow?.language || "English";
+    const userModel = model || uRow?.general_model || null;
+    if (!userModel) return next(new AppError("No model configured. Please configure a model in your settings.", "NO_MODEL", 400));
 
     const context = prompt?.trim()
       ? await getContextFromPrompt(notebookId, docIds, prompt.trim())
       : await getRandomContext(notebookId, docIds);
 
-    const flashcards = await generateFlashcardsAction(context, numCards, difficulty, prompt, model || undefined, userLanguage);
+    const flashcards = await generateFlashcardsAction(context, numCards, difficulty, prompt, userModel, userLanguage);
 
     const title = prompt?.trim() ? `Flashcards: ${prompt.slice(0, 40)}` : `Flashcards (${numCards})`;
     const id = await saveAsset(notebookId, "flashcards", flashcards, { title, prompt, numCards, difficulty });

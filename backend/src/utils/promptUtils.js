@@ -1,6 +1,6 @@
-const { llm: defaultLlm, llmQueryBuilder, createLlm } = require("../services/agent");
+const { createLlm } = require("../services/agent");
 
-async function buildQueries(userMessage, userLanguage, vectorStore, notebookId) {
+async function buildQueries(userMessage, userLanguage, vectorStore, notebookId, queryModel) {
   let roughContext = "";
   try {
     const roughDocs = await vectorStore.similaritySearchWithScore(userMessage, 4, {
@@ -33,7 +33,8 @@ ${userMessage}
 
   let aiQueries = [];
   try {
-    const res = await llmQueryBuilder.invoke(prompt);
+    const queryLlm = createLlm(queryModel);
+    const res = await queryLlm.invoke(prompt);
     aiQueries = res.content
       .split("\n")
       .map((q) => q.trim())
@@ -60,7 +61,6 @@ ${userMessage}
 }
 
 function pickLlm(model) {
-  if (!model) return defaultLlm;
   return createLlm(model);
 }
 

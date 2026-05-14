@@ -1,5 +1,5 @@
 const { z } = require("zod");
-const { llm, createLlm } = require("../agent");
+const { createLlm } = require("../agent");
 
 const QuizSchema = z.object({
   questions: z.array(
@@ -13,7 +13,8 @@ const QuizSchema = z.object({
 });
 
 async function generateQuizAction(context, numQuestions = 5, difficulty = "medium", userPrompt = "", model, userLanguage = "English") {
-  const lm = model ? createLlm(model) : llm;
+  if (!model) throw new Error("No model configured for quiz generation.");
+  const lm = createLlm(model);
   const structuredLlm = lm.withStructuredOutput(QuizSchema);
 
   const focus = userPrompt?.trim()

@@ -14,7 +14,7 @@ const crossEncoder = require("./cross_encoder");
  */
 async function chatWithAi(notebookId, userMessage, history, docIds = null, opts = {}) {
   console.log("[chatWithAi] opts keys:", Object.keys(opts), "onStage type:", typeof opts.onStage, "onToken type:", typeof opts.onToken);
-  const { onStage = () => {}, onToken = null, model = null, userLanguage = "English" } = opts;
+  const { onStage = () => {}, onToken = null, model = null, userLanguage = "English", queryModel = null } = opts;
   console.log("[chatWithAi] destructured onStage type:", typeof onStage, "onToken type:", typeof onToken);
 
   try {
@@ -23,7 +23,7 @@ async function chatWithAi(notebookId, userMessage, history, docIds = null, opts 
     const vectorStore = await getVectorStore();
 
     onStage("building_queries");
-    const queries = await buildQueries(userMessage, userLanguage, vectorStore, notebookId);
+    const queries = await buildQueries(userMessage, userLanguage, vectorStore, notebookId, queryModel);
 
     onStage("searching_documents", { queries: queries.length });
     const vectorDocs = await searchDocuments(vectorStore, queries, notebookId, docIds);

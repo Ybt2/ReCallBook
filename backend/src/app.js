@@ -17,6 +17,7 @@ const toolsRouter = require("./api/tools");
 const chatRouter = require("./api/chat");
 const ollamaRouter = require("./api/ollama");
 const healthRouter = require("./api/health");
+const userRouter = require("./api/user");
 
 const app = express();
 app.use(helmet());
@@ -46,6 +47,7 @@ app.use("/api/documents", requireAuth, documentsRouter);
 app.use("/api/tools", requireAuth, toolsRouter);
 app.use("/api/chat", requireAuth, chatRouter);
 app.use("/api/ollama", requireAuth, ollamaRouter);
+app.use("/api/user", requireAuth, userRouter);
 
 app.use(errorHandler);
 
