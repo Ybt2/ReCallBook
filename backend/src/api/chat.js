@@ -126,7 +126,15 @@ router.post("/pergunta", async (req, res, next) => {
     );
     const history = rows
       .reverse()
-      .map((m) => `${m.role === "utilizador" ? "User" : "Assistant"}: ${m.conteudo}`)
+      .map((m) => {
+        if (m.role === "utilizador") return `User: ${m.conteudo}`;
+        try {
+          const parsed = JSON.parse(m.conteudo);
+          return `Assistant: ${parsed.texto_final || parsed.content || m.conteudo}`;
+        } catch {
+          return `Assistant: ${m.conteudo}`;
+        }
+      })
       .join("\n");
 
     const aiResponse = await chatWithAi(notebookId, mensagem, history, docIds, { model: chatModel, queryModel: chatQueryModel, userLanguage });
@@ -225,7 +233,15 @@ router.post("/stream", async (req, res) => {
     );
     const history = rows
       .reverse()
-      .map((m) => `${m.role === "utilizador" ? "User" : "Assistant"}: ${m.conteudo}`)
+      .map((m) => {
+        if (m.role === "utilizador") return `User: ${m.conteudo}`;
+        try {
+          const parsed = JSON.parse(m.conteudo);
+          return `Assistant: ${parsed.texto_final || parsed.content || m.conteudo}`;
+        } catch {
+          return `Assistant: ${m.conteudo}`;
+        }
+      })
       .join("\n");
 
     // Only now we flush SSE headers — all preliminary work succeeded
