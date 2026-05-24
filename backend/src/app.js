@@ -1,10 +1,20 @@
+process.on('unhandledRejection', (reason) => {
+  console.error('UNHANDLED REJECTION:', reason?.message || reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('UNCAUGHT EXCEPTION:', error.message);
+});
+
 const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
-require('dotenv').config();
+const path = require("path");
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const { initDB } = require("./db/init");
 const { initQdrant } = require("./db/qdrant");
+const { initCross_encoder } = require("./services/cross_encoder");
 const { requireAuth } = require("./middleware/auth");
 const { errorHandler } = require("./middleware/errorHandler");
 const { apiLimiter, authLimiter } = require("./middleware/rateLimiter");
@@ -19,6 +29,7 @@ const healthRouter = require("./api/health");
 const userRouter = require("./api/user");
 
 const app = express();
+app.set('trust proxy', 1);
 app.use(helmet());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
@@ -67,7 +78,12 @@ async function startServer() {
     await initQdrant();
     console.log("Qdrant Ready");
 
-    // 3. Iniciar o Express
+    // 3. Inicializar Cross-Encoder (descarregar modelo da HuggingFace)
+    console.log("Cross-encoder starting download (this may take a while on first run)...");
+    await initCross_encoder();
+    console.log("Cross-encoder Ready");
+
+    // 4. Iniciar o Express
     app.listen(PORT, () => {
       console.log(`ReCallBook backend running on port ${PORT}`);
     });

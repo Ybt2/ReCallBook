@@ -2,6 +2,7 @@ const { getVectorStore } = require("../db/qdrant");
 const { searchDocuments } = require("../utils/searchUtils");
 const { buildQueries, generateAnswer, streamAnswer } = require("../utils/promptUtils");
 const { buildContext, extractSources } = require("../utils/contextUtils");
+const { getLabels } = require("../utils/languageLabels");
 const crossEncoder = require("./cross_encoder");
 
 /**
@@ -35,8 +36,9 @@ async function chatWithAi(notebookId, userMessage, history, docIds = null, opts 
       if (vectorDocs.length > 0) finalDocs.push(...vectorDocs.slice(0, 3));
       else {
         onStage("no_results");
+        const labels = getLabels(userLanguage);
         return {
-          texto_final: "No relevant information found.",
+          texto_final: labels.noResults,
           fontes: [],
           usage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
           model: model || null,
@@ -45,7 +47,7 @@ async function chatWithAi(notebookId, userMessage, history, docIds = null, opts 
     }
 
     onStage("generating_answer", { model: model || "default" });
-    const context = buildContext(finalDocs);
+    const context = buildContext(finalDocs, userLanguage);
 
     let answer, usage;
     if (onToken) {
@@ -74,9 +76,14 @@ async function chatWithAi(notebookId, userMessage, history, docIds = null, opts 
     };
   } catch (error) {
     console.error("Pipeline Error:", error);
-    onStage("error", { message: error.message });
+    try {
+      onStage("error", { message: error.message });
+    } catch (stageErr) {
+      console.error("Failed to emit error stage:", stageErr.message);
+    }
+    const labels = getLabels(userLanguage);
     return {
-      texto_final: "An error occurred.",
+      texto_final: labels.aiError(error.message),
       fontes: [],
       usage: { totalTokens: 0, promptTokens: 0, completionTokens: 0 },
       model: model || null,

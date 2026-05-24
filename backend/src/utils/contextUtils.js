@@ -1,7 +1,10 @@
-function buildContext(docs) {
+const { getLabels } = require("./languageLabels");
+
+function buildContext(docs, userLanguage = "English") {
+  const L = getLabels(userLanguage);
   return docs
     .map((doc, i) => {
-      return `[Documento ${i + 1}] (Localização: ${doc.metadata.source_ref})\nConteúdo: ${doc.pageContent.trim()}`;
+      return `[${L.document} ${i + 1}] (${L.location}: ${doc.metadata.source_ref})\n${L.content}: ${doc.pageContent.trim()}`;
     })
     .join("\n\n");
 }

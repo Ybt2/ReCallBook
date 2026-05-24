@@ -6,6 +6,7 @@ const { generateQuizAction } = require("../services/tools/quizTool");
 const { generateFlashcardsAction } = require("../services/tools/flashcardTool");
 const { appendLog, consoleLog } = require("../utils/logger");
 const { buildNotebookFilter } = require("../utils/validation");
+const { truncateContext } = require("../utils/truncateContext");
 const { AppError } = require("../middleware/errorHandler");
 const { requireNotebookOwner, requireAssetOwner } = require("../middleware/ownership");
 const { quizGenerateSchema, flashcardGenerateSchema, validate } = require("../utils/validationSchemas");
@@ -184,9 +185,10 @@ router.post("/quiz", validate(quizGenerateSchema), async (req, res, next) => {
     const userModel = model || uRow?.general_model || null;
     if (!userModel) return next(new AppError("No model configured. Please configure a model in your settings.", "NO_MODEL", 400));
 
-    const context = prompt?.trim()
+    const rawContext = prompt?.trim()
       ? await getContextFromPrompt(notebookId, docIds, prompt.trim())
       : await getRandomContext(notebookId, docIds);
+    const context = truncateContext(rawContext);
 
     const quiz = await generateQuizAction(context, numQuestions, difficulty, prompt, userModel, userLanguage);
 
@@ -220,9 +222,10 @@ router.post("/flashcards", validate(flashcardGenerateSchema), async (req, res, n
     const userModel = model || uRow?.general_model || null;
     if (!userModel) return next(new AppError("No model configured. Please configure a model in your settings.", "NO_MODEL", 400));
 
-    const context = prompt?.trim()
+    const rawContext = prompt?.trim()
       ? await getContextFromPrompt(notebookId, docIds, prompt.trim())
       : await getRandomContext(notebookId, docIds);
+    const context = truncateContext(rawContext);
 
     const flashcards = await generateFlashcardsAction(context, numCards, difficulty, prompt, userModel, userLanguage);
 

@@ -8,7 +8,7 @@ const { AppError } = require("../middleware/errorHandler");
 const { registerSchema, loginSchema, validate } = require("../utils/validationSchemas");
 
 // Keep in sync with frontend src/stores/auth.js SUPPORTED_LANGUAGES
-const SUPPORTED_LANGUAGES = ["English","Portuguese","Spanish","French","German","Italian","Chinese","Japanese","Korean","Dutch","Polish","Russian","Arabic","Hindi"];
+const SUPPORTED_LANGUAGES = ["English", "Portuguese"];
 
 // POST /api/auth/register
 router.post("/register", validate(registerSchema), async (req, res, next) => {

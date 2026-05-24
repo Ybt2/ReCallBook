@@ -97,7 +97,7 @@ async function imageDataToPngBase64(imgData) {
   }).png().toBuffer()).toString("base64");
 }
 
-async function parsePDF(filePath, notebookId, docId, originalname) {
+async function parsePDF(filePath, notebookId, docId, originalname, visionModel = null, userLanguage = "English") {
   const loader = new PDFLoader(filePath, { parsedItemSeparator: "" });
   const docs = await loader.load();
 
@@ -133,7 +133,7 @@ async function parsePDF(filePath, notebookId, docId, originalname) {
     for (const { pageNum, imgData } of images) {
       try {
         const base64 = await imageDataToPngBase64(imgData);
-        const description = await processImageBase64(base64, "image/png");
+        const description = await processImageBase64(base64, "image/png", visionModel, userLanguage);
         if (!description) continue;
 
         const rawDoc = new Document({

@@ -48,6 +48,7 @@ export const ChatAPI = {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buf = "";
+    let receivedDone = false;
     try {
       while (true) {
         const { done, value } = await reader.read();
@@ -67,13 +68,19 @@ export const ChatAPI = {
           if (ev.event === "user_saved") handlers.onUserSaved?.(ev.data);
           else if (ev.event === "stage") handlers.onStage?.(ev.data);
           else if (ev.event === "token") handlers.onToken?.(ev.data?.token || "");
-          else if (ev.event === "done") handlers.onDone?.(ev.data);
-          else if (ev.event === "error") handlers.onError?.(ev.data?.message || "stream failed");
+          else if (ev.event === "done") {
+            receivedDone = true;
+            handlers.onDone?.(ev.data);
+          } else if (ev.event === "error") handlers.onError?.(ev.data?.message || "stream failed");
         }
+      }
+      if (!receivedDone) {
+        console.error("[ChatAPI.stream] Stream closed unexpectedly without done event");
+        handlers.onError?.("Stream closed unexpectedly. Please try again.");
       }
     } catch (err) {
       console.error("[ChatAPI.stream] Read error:", err);
-      if (err.name !== "AbortError") handlers.onError?.(err.message);
+      if (err.name !== "AbortError") handlers.onError?.(err.message || "Network error while reading stream");
     }
   },
 };

@@ -3,6 +3,7 @@ const router = express.Router();
 const { pool } = require("../db/init");
 const { chatWithAi } = require("../services/chatService");
 const { appendLog, consoleLog } = require("../utils/logger");
+const { getLabels } = require("../utils/languageLabels");
 const { AppError } = require("../middleware/errorHandler");
 
 async function getUserModels(userId) {
@@ -114,6 +115,7 @@ router.post("/pergunta", async (req, res, next) => {
   try {
     const [[uRow]] = await pool.query("SELECT language FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
     const userLanguage = uRow?.language || "English";
+    const labels = getLabels(userLanguage);
 
     const userModels = await getUserModels(req.user.id);
     const chatModel = model || userModels.general_model;
@@ -127,12 +129,12 @@ router.post("/pergunta", async (req, res, next) => {
     const history = rows
       .reverse()
       .map((m) => {
-        if (m.role === "utilizador") return `User: ${m.conteudo}`;
+        if (m.role === "utilizador") return `${labels.user}: ${m.conteudo}`;
         try {
           const parsed = JSON.parse(m.conteudo);
-          return `Assistant: ${parsed.texto_final || parsed.content || m.conteudo}`;
+          return `${labels.assistant}: ${parsed.texto_final || parsed.content || m.conteudo}`;
         } catch {
-          return `Assistant: ${m.conteudo}`;
+          return `${labels.assistant}: ${m.conteudo}`;
         }
       })
       .join("\n");
@@ -205,6 +207,7 @@ router.post("/stream", async (req, res) => {
 
     const [[uRow]] = await pool.query("SELECT language FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
     const userLanguage = uRow?.language || "English";
+    const labels = getLabels(userLanguage);
 
     if (editMessageId) {
       const [msgRows] = await pool.query(
@@ -234,12 +237,12 @@ router.post("/stream", async (req, res) => {
     const history = rows
       .reverse()
       .map((m) => {
-        if (m.role === "utilizador") return `User: ${m.conteudo}`;
+        if (m.role === "utilizador") return `${labels.user}: ${m.conteudo}`;
         try {
           const parsed = JSON.parse(m.conteudo);
-          return `Assistant: ${parsed.texto_final || parsed.content || m.conteudo}`;
+          return `${labels.assistant}: ${parsed.texto_final || parsed.content || m.conteudo}`;
         } catch {
-          return `Assistant: ${m.conteudo}`;
+          return `${labels.assistant}: ${m.conteudo}`;
         }
       })
       .join("\n");
@@ -252,16 +255,27 @@ router.post("/stream", async (req, res) => {
     res.flushHeaders();
 
     const send = (event, data) => {
-      const payload = JSON.stringify(data);
-      res.write(`event: ${event}\n`);
-      res.write(`data: ${payload}\n\n`);
-      if (typeof res.flush === "function") res.flush();
+      if (closed || res.writableEnded || res.destroyed) return;
+      try {
+        const payload = JSON.stringify(data);
+        res.write(`event: ${event}\n`);
+        res.write(`data: ${payload}\n\n`);
+        if (typeof res.flush === "function") res.flush();
+      } catch (writeErr) {
+        console.error("SSE write failed (client likely disconnected):", writeErr.message);
+        closed = true;
+      }
     };
 
     let closed = false;
     res.on("close", () => { closed = true; });
     res.on("finish", () => { closed = true; });
+    req.on("close", () => { closed = true; });
     req.on("aborted", () => { closed = true; });
+    res.on("error", (err) => {
+      console.error("Response stream error:", err.message);
+      closed = true;
+    });
 
     const [userIns] = await pool.query(
       "INSERT INTO Mensagens (notebooks_ID, role, conteudo) VALUES (?, 'utilizador', ?)",
@@ -286,29 +300,10 @@ router.post("/stream", async (req, res) => {
     const usedModel = aiResponse.model || chatModel;
     const totalTokens = aiResponse.usage?.totalTokens ?? 0;
 
-    const [result] = await pool.query(
-      `INSERT INTO Mensagens
-       (notebooks_ID, role, conteudo, modelo_ai, LOGS, tempo_processamento, num_tokens)
-       VALUES (?, 'assistant', ?, ?, ?, ?, ?)`,
-      [
-        notebookId,
-        JSON.stringify({ texto_final: aiResponse.texto_final, fontes: aiResponse.fontes }),
-        usedModel,
-        "SUCCESS",
-        tempoProc,
-        totalTokens,
-      ]
-    );
-
-    await appendLog("NoteBooks", "ID", notebookId, "chat_answered", {
-      messageId: result.insertId,
-      model: usedModel,
-      tokens: totalTokens,
-      processingTime: elapsedSecs.toFixed(2),
-    });
-
+    // Send "done" before DB writes so the stream completes cleanly
+    // even if background persistence fails.
     send("done", {
-      id: result.insertId,
+      id: 0,
       content: aiResponse.texto_final,
       sources: aiResponse.fontes,
       model: usedModel,
@@ -316,13 +311,45 @@ router.post("/stream", async (req, res) => {
       processingTime: elapsedSecs.toFixed(2),
     });
     res.end();
+
+    // Persist to DB in the background — client already received the response
+    (async () => {
+      try {
+        const [result] = await pool.query(
+          `INSERT INTO Mensagens
+           (notebooks_ID, role, conteudo, modelo_ai, LOGS, tempo_processamento, num_tokens)
+           VALUES (?, 'assistant', ?, ?, ?, ?, ?)`,
+          [
+            notebookId,
+            JSON.stringify({ texto_final: aiResponse.texto_final, fontes: aiResponse.fontes }),
+            usedModel,
+            "SUCCESS",
+            tempoProc,
+            totalTokens,
+          ]
+        );
+
+        await appendLog("NoteBooks", "ID", notebookId, "chat_answered", {
+          messageId: result.insertId,
+          model: usedModel,
+          tokens: totalTokens,
+          processingTime: elapsedSecs.toFixed(2),
+        });
+      } catch (dbError) {
+        console.error("Background DB persistence failed:", dbError);
+      }
+    })();
   } catch (error) {
     console.error("Stream error:", error);
-    if (res.headersSent) {
-      try { res.write(`event: error\ndata: ${JSON.stringify({ message: "An error occurred while processing the stream." })}\n\n`); } catch (_) {}
-      res.end();
-    } else {
+    if (!res.headersSent) {
       res.status(500).json({ error: "An error occurred.", code: "STREAM_ERROR", status: 500 });
+    } else {
+      try {
+        send("error", { message: error.message || "Stream failed" });
+        res.end();
+      } catch (e) {
+        console.error("Failed to send terminal error event:", e.message);
+      }
     }
   }
 });

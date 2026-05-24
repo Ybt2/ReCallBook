@@ -204,6 +204,7 @@ export const useNotebookStore = defineStore("notebook", {
                 this.streamAbortController = null;
                 return;
               }
+              if (!this.streaming) return;
               this.messages = this.messages.filter(
                 (msg) => msg.id !== optimistic.id
               );

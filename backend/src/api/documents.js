@@ -87,6 +87,10 @@ router.post("/upload", upload.single("file"), validate(uploadSchema), async (req
 
     const { path: tmpPath, originalname } = req.file;
     const { visionModel } = req.body;
+
+    const [[uRow]] = await pool.query("SELECT language, vision_model FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
+    const userLanguage = uRow?.language || "English";
+    const userVisionModel = visionModel || uRow?.vision_model || null;
     const safeName = sanitizeFilename(originalname);
     const docId = uuidv4();
     const ext = path.extname(safeName).toLowerCase();
@@ -100,24 +104,18 @@ router.post("/upload", upload.single("file"), validate(uploadSchema), async (req
 
     let chunks, summary;
     if (isImage) {
-      if (!visionModel) {
-        const [uRow] = await pool.query("SELECT vision_model FROM Utilizadores WHERE ID = ? LIMIT 1", [req.user.id]);
-        const userVisionModel = uRow[0]?.vision_model || null;
-        if (userVisionModel) {
-          ({ chunks, summary } = await parseImage(storedPath, notebookId, docId, safeName, userVisionModel));
-        } else {
-          const rawText = `[Image: ${safeName} — No vision model configured. Image stored without description.]`;
-          const { Document } = require("@langchain/core/documents");
-          chunks = [new Document({ pageContent: rawText, metadata: { notebookId: String(notebookId), docId, source_type: getImageType(safeName), source_name: safeName, source_ref: "Imagem", chunk_index: 0 } })];
-          summary = { totalPages: 1, totalChunks: 1, fileName: safeName, avgChunkSize: rawText.length };
-        }
+      if (userVisionModel) {
+        ({ chunks, summary } = await parseImage(storedPath, notebookId, docId, safeName, userVisionModel, userLanguage));
       } else {
-        ({ chunks, summary } = await parseImage(storedPath, notebookId, docId, safeName, visionModel));
+        const rawText = `[Image: ${safeName} — No vision model configured. Image stored without description.]`;
+        const { Document } = require("@langchain/core/documents");
+        chunks = [new Document({ pageContent: rawText, metadata: { notebookId: String(notebookId), docId, source_type: getImageType(safeName), source_name: safeName, source_ref: "Imagem", chunk_index: 0 } })];
+        summary = { totalPages: 1, totalChunks: 1, fileName: safeName, avgChunkSize: rawText.length };
       }
     } else if (isText) {
       ({ chunks, summary } = await parseText(storedPath, notebookId, docId, safeName));
     } else {
-      ({ chunks, summary } = await parsePDF(storedPath, notebookId, docId, safeName));
+      ({ chunks, summary } = await parsePDF(storedPath, notebookId, docId, safeName, userVisionModel, userLanguage));
     }
 
     await pool.query(
@@ -125,6 +123,7 @@ router.post("/upload", upload.single("file"), validate(uploadSchema), async (req
       [docId, notebookId, safeName, fileType, "processado"]
     );
 
+    chunks.forEach(c => { c.id = uuidv4(); });
     const vectorStore = await getVectorStore();
     await vectorStore.addDocuments(chunks);
 

@@ -89,15 +89,21 @@ async function confirmRemove() {
       <p class="text-[10px] text-oc-mid mt-0.5">{{ uploadProgress }}%</p>
     </div>
 
-    <label v-if="store.documents.length > 0" class="px-4 py-2 flex items-center gap-2 text-xs shrink-0">
-      <input
-        type="checkbox"
-        class="accent-brand-500"
-        :checked="allSelected"
-        @change="store.selectAllDocs($event.target.checked)"
-      />
-      <span class="text-oc-mid">Select all</span>
-    </label>
+    <div class="px-4 py-3 border-b border-warm shrink-0">
+      <button
+        class="w-full py-2 rounded-btn text-xs text-oc-mid hover:bg-oc-surface hover:text-oc-light flex items-center justify-center gap-1.5 transition-colors"
+        :disabled="uploading"
+        @click="fileInput.click()"
+      >
+        <Spinner v-if="uploading" :size="12" />
+        <template v-else>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Add
+        </template>
+      </button>
+    </div>
 
     <div class="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1 min-h-0">
       <div v-if="store.loading.documents" class="p-3 text-sm text-oc-mid flex items-center gap-2">
@@ -106,6 +112,15 @@ async function confirmRemove() {
       <div v-else-if="!store.documents.length" class="p-5 text-center text-sm text-oc-mid">
         Upload file to get started.
       </div>
+      <label v-if="store.documents.length > 0" class="flex items-center gap-2 px-2 py-2 border-b border-warm text-xs shrink-0">
+        <input
+          type="checkbox"
+          class="accent-brand-500"
+          :checked="allSelected"
+          @change="store.selectAllDocs($event.target.checked)"
+        />
+        <span class="text-oc-mid">Select all</span>
+      </label>
       <div
         v-for="d in store.documents"
         :key="d.id"
@@ -154,19 +169,6 @@ async function confirmRemove() {
         </button>
       </div>
 
-      <button
-        class="w-full mt-1 py-2 rounded-btn text-xs text-oc-mid hover:bg-oc-surface hover:text-oc-light flex items-center justify-center gap-1.5 transition-colors"
-        :disabled="uploading"
-        @click="fileInput.click()"
-      >
-        <Spinner v-if="uploading" :size="12" />
-        <template v-else>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Add
-        </template>
-      </button>
     </div>
 
     <ConfirmDialog

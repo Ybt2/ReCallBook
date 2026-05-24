@@ -30,8 +30,8 @@ You generate search queries for a document database.
 STRICT RULES:
 - Use ONLY topics present in the CONTEXT
 - Do NOT introduce new topics
-- Write exactly 3 query
-- Same language as ${userLanguage}
+- Write exactly 3 queries
+- You MUST write every query in ${userLanguage}. Use ${userLanguage} only.
 - One query per line
 - No numbering
 - No explanations
@@ -75,17 +75,16 @@ function pickLlm(model) {
 }
 
 function buildAnswerPrompt(query, context, history, userLanguage) {
-  return `You are a professional document analysis assistant.
-Answer the user's question using ONLY the provided CONTEXT.
+  return `LANGUAGE MANDATE: You MUST write this entire response in ${userLanguage}. Every single word must be in ${userLanguage}. Do not use any other language under any circumstances.
+
+You are a professional document analysis assistant. Answer the user's question using ONLY the provided CONTEXT.
 
 STRICT RULES:
 1. LANGUAGE: You MUST answer in ${userLanguage}. Always use ${userLanguage} regardless of the question's language.
 2. FORMAT: Use plain text only. DO NOT wrap the response in code blocks, JSON, or JavaScript functions.
-3. CITATIONS: Use ONLY the format [n] (e.g., [1]) at the end of sentences, NEVER write "Documento [n]" or "[Documento n]". Use ONLY the number inside brackets.
+3. CITATIONS: Use ONLY the format [n] (e.g., [1]) at the end of sentences. Use ONLY the number inside brackets.
 4. HONESTY: If the context doesn't have the answer, state that you don't know in ${userLanguage}.
 5. NO META-TALK: Do not mention your internal processes.
-
-USER LANGUAGE: ${userLanguage}
 
 CONTEXT:
 ${context}
@@ -94,6 +93,8 @@ HISTORY:
 ${history}
 
 USER QUESTION: ${query}
+
+REMEMBER: Write the FINAL ANSWER entirely in ${userLanguage}.
 
 FINAL ANSWER:`;
 }
@@ -120,16 +121,28 @@ async function streamAnswer(query, context, history, userLanguage, model, onToke
 
   let full = "";
   let lastUsage = null;
-  const stream = await llm.stream(prompt);
-  for await (const chunk of stream) {
-    const piece = chunk?.content || "";
-    if (piece) {
-      full += piece;
-      if (onToken) onToken(piece);
+  try {
+    const stream = await llm.stream(prompt);
+    for await (const chunk of stream) {
+      const piece = chunk?.content || "";
+      if (piece) {
+        full += piece;
+        if (onToken) {
+          try {
+            onToken(piece);
+          } catch (tokenErr) {
+            console.warn("Token delivery failed, aborting stream read:", tokenErr.message);
+            break;
+          }
+        }
+      }
+      if (chunk?.response_metadata?.usage || chunk?.usage_metadata) {
+        lastUsage = chunk.response_metadata?.usage || chunk.usage_metadata;
+      }
     }
-    if (chunk?.response_metadata?.usage || chunk?.usage_metadata) {
-      lastUsage = chunk.response_metadata?.usage || chunk.usage_metadata;
-    }
+  } catch (streamErr) {
+    console.error("[streamAnswer] Stream failed:", streamErr.message);
+    throw streamErr;
   }
   const text = full.trim().replace(/^```[a-z]*\n?|```$/gi, "");
   return {

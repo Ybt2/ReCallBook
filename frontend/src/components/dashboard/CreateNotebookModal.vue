@@ -19,7 +19,7 @@ const progress = ref("");
 const error = ref("");
 
 function onPick(e) {
-  files.value = [...e.target.files].filter((f) => f.type === "application/pdf");
+  files.value = [...e.target.files];
 }
 
 watch(
@@ -69,7 +69,7 @@ async function submit() {
         />
       </div>
       <div>
-        <label class="label">Upload PDFs (optional)</label>
+        <label class="label">Upload files (optional)</label>
         <label
           class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-oc-border rounded-btn p-6 cursor-pointer hover:border-oc-mid hover:bg-oc-dark/40"
           :class="{ 'pointer-events-none opacity-60': step === 'processing' }"
@@ -77,8 +77,8 @@ async function submit() {
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-oc-mid">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5-5 5 5M12 5v12" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="text-sm text-oc-mid">Click to browse or drop PDFs</span>
-          <input type="file" multiple accept="application/pdf" class="hidden" @change="onPick" />
+          <span class="text-sm text-oc-mid">Click to browse or drop files</span>
+          <input type="file" multiple accept="application/pdf,image/jpeg,image/png,image/svg+xml,text/plain,text/markdown,.md,.txt" class="hidden" @change="onPick" />
         </label>
         <ul v-if="files.length" class="mt-2 space-y-1 text-sm text-oc-light">
           <li v-for="(f, i) in files" :key="i" class="flex items-center gap-2 truncate">

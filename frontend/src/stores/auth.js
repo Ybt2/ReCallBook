@@ -7,18 +7,6 @@ const TOKEN_KEY = "recallbook.token";
 export const SUPPORTED_LANGUAGES = [
   { value: "English", label: "English" },
   { value: "Portuguese", label: "Português" },
-  { value: "Spanish", label: "Español" },
-  { value: "French", label: "Français" },
-  { value: "German", label: "Deutsch" },
-  { value: "Italian", label: "Italiano" },
-  { value: "Chinese", label: "中文" },
-  { value: "Japanese", label: "日本語" },
-  { value: "Korean", label: "한국어" },
-  { value: "Dutch", label: "Nederlands" },
-  { value: "Polish", label: "Polski" },
-  { value: "Russian", label: "Русский" },
-  { value: "Arabic", label: "العربية" },
-  { value: "Hindi", label: "हिन्दी" },
 ];
 
 export const useAuthStore = defineStore("auth", {

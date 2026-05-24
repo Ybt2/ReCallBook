@@ -1,5 +1,6 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
@@ -15,6 +16,10 @@ const pool = mysql.createPool({
     database: DB_NAME,
     waitForConnections: true,
     connectionLimit: 10
+});
+
+pool.on('error', (err) => {
+    console.error('MySQL pool error:', err.message);
 });
 
 async function initDB() {
