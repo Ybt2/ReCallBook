@@ -11,3 +11,4 @@ pap-DB_versão_alpha0.9.drawio.svg
 
 # Docker
 .dockerignore
+docker-compose.override.yml
