@@ -34,7 +34,8 @@ app.use(helmet());
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || "http://localhost:5173").split(",").map(s => s.trim());
+const FRONTEND_PORT = process.env.FRONTEND_PORT || 5173;
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || `http://localhost:${FRONTEND_PORT}`).split(",").map(s => s.trim());
 const IS_PRODUCTION = process.env.NODE_ENV === "production";
 app.use(cors({
   origin(origin, cb) {
@@ -61,9 +62,18 @@ app.use("/api/user", requireAuth, userRouter);
 
 app.use(errorHandler);
 
+// Serve built frontend in production
+if (process.env.NODE_ENV === "production") {
+  const frontendDist = path.resolve(__dirname, "../../frontend/dist");
+  app.use(express.static(frontendDist));
+  app.get("*", (_req, res) => {
+    res.sendFile(path.join(frontendDist, "index.html"));
+  });
+}
+
 module.exports = app;
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.BACKEND_PORT || process.env.PORT || 3000;
 
 // Função de Inicialização Assíncrona
 async function startServer() {
@@ -85,7 +95,14 @@ async function startServer() {
 
     // 4. Iniciar o Express
     app.listen(PORT, () => {
-      console.log(`ReCallBook backend running on port ${PORT}`);
+      const url = `http://localhost:${PORT}`;
+      const frontendPort = process.env.FRONTEND_PORT || 5173;
+      if (process.env.NODE_ENV === "production") {
+        console.log(`ReCallBook is running at ${url}`);
+      } else {
+        console.log(`ReCallBook API is running at ${url}`);
+        console.log(`Frontend dev server: http://localhost:${frontendPort}`);
+      }
     });
 
   } catch (error) {

@@ -3,11 +3,8 @@ const router = express.Router();
 
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 
-// Small helper that works with both node-fetch and global fetch (Node 18+)
 async function doFetch(url, opts) {
-  if (typeof fetch === "function") return fetch(url, opts);
-  const nf = require("node-fetch");
-  return nf(url, opts);
+  return fetch(url, opts);
 }
 
 // GET /api/ollama/models  -> list installed models
