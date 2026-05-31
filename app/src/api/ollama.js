@@ -3,8 +3,19 @@ const router = express.Router();
 
 const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
 
-async function doFetch(url, opts) {
-  return fetch(url, opts);
+async function doFetch(url, opts, retries = 2) {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url, opts);
+      if (res.ok) return res;
+      if (res.status < 500) return res;
+      if (i === retries) return res;
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+    } catch (err) {
+      if (i === retries) throw err;
+      await new Promise(r => setTimeout(r, 1000 * Math.pow(2, i)));
+    }
+  }
 }
 
 // GET /api/ollama/models  -> list installed models

@@ -76,9 +76,11 @@ describe("GET /api/notebooks", () => {
   });
 
   it("returns notebooks for authenticated user", async () => {
-    pool.query.mockResolvedValueOnce([[
-      { id: "nb-1", titulo: "Test Notebook", created_at: "2025-01-01" },
-    ]]);
+    pool.query
+      .mockResolvedValueOnce([[{ ID: 1 }]])
+      .mockResolvedValueOnce([[
+        { id: "nb-1", titulo: "Test Notebook", created_at: "2025-01-01" },
+      ]]);
     const res = await request(app)
       .get("/api/notebooks")
       .set("Authorization", `Bearer ${validToken}`);
@@ -95,7 +97,9 @@ describe("IDOR - Ownership checks", () => {
   });
 
   it("GET /api/notebooks/:id returns 403 for non-owner", async () => {
-    pool.query.mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
+    pool.query
+      .mockResolvedValueOnce([[{ ID: 1 }]])
+      .mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
     const res = await request(app)
       .get("/api/notebooks/1")
       .set("Authorization", `Bearer ${validToken}`);
@@ -105,6 +109,7 @@ describe("IDOR - Ownership checks", () => {
 
   it("GET /api/notebooks/:id returns 200 for owner", async () => {
     pool.query
+      .mockResolvedValueOnce([[{ ID: 1 }]])
       .mockResolvedValueOnce([[{ utilizadores_ID: 1 }]])
       .mockResolvedValueOnce([[{ id: 1, titulo: "My NB", utilizadores_ID: 1, created_at: "2025-01-01", updated_at: null }]]);
     const res = await request(app)
@@ -114,7 +119,9 @@ describe("IDOR - Ownership checks", () => {
   });
 
   it("DELETE /api/notebooks/:id returns 403 for non-owner", async () => {
-    pool.query.mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
+    pool.query
+      .mockResolvedValueOnce([[{ ID: 1 }]])
+      .mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
     const res = await request(app)
       .delete("/api/notebooks/1")
       .set("Authorization", `Bearer ${validToken}`);
@@ -122,7 +129,9 @@ describe("IDOR - Ownership checks", () => {
   });
 
   it("GET /api/chat/messages returns 403 for non-owner notebook", async () => {
-    pool.query.mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
+    pool.query
+      .mockResolvedValueOnce([[{ ID: 1 }]])
+      .mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
     const res = await request(app)
       .get("/api/chat/messages?notebookId=1")
       .set("Authorization", `Bearer ${validToken}`);
@@ -130,7 +139,9 @@ describe("IDOR - Ownership checks", () => {
   });
 
   it("GET /api/tools returns 403 for non-owner notebook", async () => {
-    pool.query.mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
+    pool.query
+      .mockResolvedValueOnce([[{ ID: 1 }]])
+      .mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
     const res = await request(app)
       .get("/api/tools?notebookId=1")
       .set("Authorization", `Bearer ${validToken}`);
@@ -138,7 +149,9 @@ describe("IDOR - Ownership checks", () => {
   });
 
   it("GET /api/documents returns 403 for non-owner notebook", async () => {
-    pool.query.mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
+    pool.query
+      .mockResolvedValueOnce([[{ ID: 1 }]])
+      .mockResolvedValueOnce([[{ utilizadores_ID: 999 }]]);
     const res = await request(app)
       .get("/api/documents?notebookId=1")
       .set("Authorization", `Bearer ${validToken}`);

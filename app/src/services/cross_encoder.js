@@ -6,6 +6,7 @@ const model_id = 'jinaai/jina-reranker-v2-base-multilingual';
 let model = null;
 let tokenizer = null;
 let unloadTimer = null;
+let loadPromise = null;
 const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 
 function scheduleUnload() {
@@ -16,19 +17,27 @@ function scheduleUnload() {
       model = null;
     }
     tokenizer = null;
+    loadPromise = null;
     unloadTimer = null;
     console.log("[cross_encoder] Model unloaded from RAM after idle timeout");
   }, IDLE_TIMEOUT_MS);
 }
 
 async function initCross_encoder() {
-    if (!model || !tokenizer) {
-        console.log("[cross_encoder] Loading tokenizer...");
-        tokenizer = await AutoTokenizer.from_pretrained(model_id);
-        console.log("[cross_encoder] Tokenizer OK. Loading model...");
-        model = await XLMRobertaModel.from_pretrained(model_id, { dtype: 'fp16' });
-        console.log("[cross_encoder] Reranking model ready.");
+    if (model && tokenizer) {
+        scheduleUnload();
+        return;
     }
+    if (!loadPromise) {
+        loadPromise = (async () => {
+            console.log("[cross_encoder] Loading tokenizer...");
+            tokenizer = await AutoTokenizer.from_pretrained(model_id);
+            console.log("[cross_encoder] Tokenizer OK. Loading model...");
+            model = await XLMRobertaModel.from_pretrained(model_id, { dtype: 'fp16' });
+            console.log("[cross_encoder] Reranking model ready.");
+        })();
+    }
+    await loadPromise;
     scheduleUnload();
 }
 

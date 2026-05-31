@@ -89,9 +89,12 @@ async function startServer() {
     console.log("Qdrant Ready");
 
     // 3. Inicializar Cross-Encoder (descarregar modelo da HuggingFace)
+    // Runs in background — the model is lazy-loaded on first rerank anyway.
+    // If this fails, rerank() will retry initCross_encoder() on demand.
     console.log("Cross-encoder starting download (this may take a while on first run)...");
-    await initCross_encoder();
-    console.log("Cross-encoder Ready");
+    initCross_encoder()
+      .then(() => console.log("Cross-encoder Ready"))
+      .catch(err => console.error("Cross-encoder init failed (will lazy-load on rerank):", err.message));
 
     // 4. Iniciar o Express
     app.listen(PORT, () => {

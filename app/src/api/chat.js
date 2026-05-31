@@ -300,45 +300,43 @@ router.post("/stream", async (req, res) => {
     const usedModel = aiResponse.model || chatModel;
     const totalTokens = aiResponse.usage?.totalTokens ?? 0;
 
-    // Send "done" before DB writes so the stream completes cleanly
-    // even if background persistence fails.
-    send("done", {
-      id: 0,
-      content: aiResponse.texto_final,
-      sources: aiResponse.fontes,
-      model: usedModel,
-      tokens: totalTokens,
-      processingTime: elapsedSecs.toFixed(2),
-    });
+    // Persist to DB before sending "done" so the client gets the real
+    // insertId and we can report errors back instead of failing silently.
+    try {
+      const [result] = await pool.query(
+        `INSERT INTO Mensagens
+         (notebooks_ID, role, conteudo, modelo_ai, LOGS, tempo_processamento, num_tokens)
+         VALUES (?, 'assistant', ?, ?, ?, ?, ?)`,
+        [
+          notebookId,
+          JSON.stringify({ texto_final: aiResponse.texto_final, fontes: aiResponse.fontes }),
+          usedModel,
+          "SUCCESS",
+          tempoProc,
+          totalTokens,
+        ]
+      );
+
+      await appendLog("NoteBooks", "ID", notebookId, "chat_answered", {
+        messageId: result.insertId,
+        model: usedModel,
+        tokens: totalTokens,
+        processingTime: elapsedSecs.toFixed(2),
+      });
+
+      send("done", {
+        id: result.insertId,
+        content: aiResponse.texto_final,
+        sources: aiResponse.fontes,
+        model: usedModel,
+        tokens: totalTokens,
+        processingTime: elapsedSecs.toFixed(2),
+      });
+    } catch (dbError) {
+      console.error("DB persistence failed:", dbError);
+      send("error", { message: "Failed to save message." });
+    }
     res.end();
-
-    // Persist to DB in the background — client already received the response
-    (async () => {
-      try {
-        const [result] = await pool.query(
-          `INSERT INTO Mensagens
-           (notebooks_ID, role, conteudo, modelo_ai, LOGS, tempo_processamento, num_tokens)
-           VALUES (?, 'assistant', ?, ?, ?, ?, ?)`,
-          [
-            notebookId,
-            JSON.stringify({ texto_final: aiResponse.texto_final, fontes: aiResponse.fontes }),
-            usedModel,
-            "SUCCESS",
-            tempoProc,
-            totalTokens,
-          ]
-        );
-
-        await appendLog("NoteBooks", "ID", notebookId, "chat_answered", {
-          messageId: result.insertId,
-          model: usedModel,
-          tokens: totalTokens,
-          processingTime: elapsedSecs.toFixed(2),
-        });
-      } catch (dbError) {
-        console.error("Background DB persistence failed:", dbError);
-      }
-    })();
   } catch (error) {
     console.error("Stream error:", error);
     if (!res.headersSent) {

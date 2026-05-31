@@ -1,4 +1,5 @@
 const { signToken, requireAuth } = require("../src/middleware/auth");
+const { pool } = require("../src/db/init");
 
 function mockReqResNext(headers = {}) {
   const req = { headers };
@@ -43,10 +44,11 @@ describe("requireAuth", () => {
     expect(res.body.code).toBe("TOKEN_INVALID");
   });
 
-  it("accepts valid token and sets req.user", () => {
+  it("accepts valid token and sets req.user", async () => {
+    pool.query.mockResolvedValue([[{ ID: 42 }]]);
     const token = signToken({ id: 42, username: "tester" });
     const { req, res, next } = mockReqResNext({ authorization: `Bearer ${token}` });
-    requireAuth(req, res, next);
+    await requireAuth(req, res, next);
     expect(next).toHaveBeenCalled();
     expect(req.user).toBeDefined();
     expect(req.user.id).toBe(42);
