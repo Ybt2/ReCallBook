@@ -1,7 +1,7 @@
 #Requires -Version 5.1
-# ═══════════════════════════════════════════════════════════
+# ===========================================================
 # ReCallBook Control Script (Windows)
-# ═══════════════════════════════════════════════════════════
+# ===========================================================
 
 param(
     [Parameter(Mandatory=$true, Position=0)]
@@ -21,6 +21,7 @@ $ProjectRoot = Resolve-Path $ScriptDir
 $PidDir = Join-Path $ProjectRoot "data\pids"
 $LogDir = Join-Path $ProjectRoot "data\logs"
 $AppDir = Join-Path $ProjectRoot "app"
+$FrontendDir = Join-Path $ProjectRoot "frontend"
 $EnvFile = Join-Path $ProjectRoot ".env"
 
 function Info { param($msg) Write-Host "[INFO]  $msg" -ForegroundColor Cyan }
@@ -28,13 +29,13 @@ function Warn { param($msg) Write-Host "[WARN]  $msg" -ForegroundColor Yellow }
 function Ok   { param($msg) Write-Host "[OK]    $msg" -ForegroundColor Green }
 function Err  { param($msg) Write-Host "[ERROR] $msg" -ForegroundColor Red }
 
-# ─── Ensure directories exist ───────────────────────────
+# --- Ensure directories exist ---------------------------
 function Ensure-Dirs {
     New-Item -ItemType Directory -Force -Path $PidDir | Out-Null
     New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 }
 
-# ─── Check if process is running by PID file ──────────────
+# --- Check if process is running by PID file --------------
 function Is-Running {
     param([string]$PidFile)
     if (Test-Path $PidFile) {
@@ -49,7 +50,7 @@ function Is-Running {
     return $false
 }
 
-# ─── Get service status ─────────────────────────────────
+# --- Get service status ---------------------------------
 function Get-ServiceStatus {
     param([string]$CheckUrl)
     try {
@@ -61,7 +62,7 @@ function Get-ServiceStatus {
     return "stopped"
 }
 
-# ─── Start data containers ──────────────────────────────
+# --- Start data containers ------------------------------
 function Start-Data {
     Info "Starting data services..."
     Push-Location $ProjectRoot
@@ -93,7 +94,7 @@ function Start-Data {
     if ($qdrantReady) { Ok "Qdrant ready" } else { Warn "Qdrant healthcheck timed out" }
 }
 
-# ─── Stop data containers ───────────────────────────────
+# --- Stop data containers -------------------------------
 function Stop-Data {
     Info "Stopping data services..."
     Push-Location $ProjectRoot
@@ -102,7 +103,7 @@ function Stop-Data {
     Ok "Data services stopped"
 }
 
-# ─── Ensure Ollama is running ───────────────────────────
+# --- Ensure Ollama is running ---------------------------
 function Ensure-Ollama {
     try {
         $null = Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -UseBasicParsing -ErrorAction Stop -TimeoutSec 3
@@ -125,7 +126,7 @@ function Ensure-Ollama {
     exit 1
 }
 
-# ─── Start the app ──────────────────────────────────────
+# --- Start the app --------------------------------------
 function Start-App {
     param([switch]$AsDaemon)
     $pidfile = Join-Path $PidDir "app.pid"
@@ -140,7 +141,7 @@ function Start-App {
     Push-Location $AppDir
 
     if ($AsDaemon) {
-        $proc = Start-Process -FilePath "node" -ArgumentList "src/app.js" -WindowStyle Hidden -PassThru -RedirectStandardOutput $logfile -RedirectStandardError $logfile
+        $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c node src/app.js > $logfile 2>&1" -WindowStyle Hidden -PassThru
         $proc.Id | Set-Content $pidfile
         Ok "App started in background (PID: $($proc.Id))"
         Info "Logs: $logfile"
@@ -156,7 +157,7 @@ function Start-App {
     Pop-Location
 }
 
-# ─── Stop the app ───────────────────────────────────────
+# --- Stop the app ---------------------------------------
 function Stop-App {
     $pidfile = Join-Path $PidDir "app.pid"
     if (Is-Running -PidFile $pidfile) {
@@ -172,15 +173,69 @@ function Stop-App {
     }
 }
 
-# ─── Status ─────────────────────────────────────────────
+# --- Start the frontend ----------------------------------
+function Start-Frontend {
+    param([switch]$AsDaemon)
+    $pidfile = Join-Path $PidDir "frontend.pid"
+    $logfile = Join-Path $LogDir "frontend.log"
+
+    if (Is-Running -PidFile $pidfile) {
+        Warn "Frontend is already running (PID: $(Get-Content $pidfile))"
+        return
+    }
+
+    Info "Starting frontend dev server..."
+    Push-Location $FrontendDir
+
+    # Read FRONTEND_PORT from .env so Vite uses the correct port
+    $frontendPort = 5173
+    if (Test-Path $EnvFile) {
+        $envContent = Get-Content $EnvFile
+        $portLine = $envContent | Where-Object { $_ -match '^FRONTEND_PORT=\d+' }
+        if ($portLine) {
+            $frontendPort = [int]($portLine -replace '^FRONTEND_PORT=', '')
+        }
+    }
+    $env:FRONTEND_PORT = $frontendPort
+
+    $proc = Start-Process -FilePath "cmd.exe" -ArgumentList "/c npm run dev > $logfile 2>&1" -WindowStyle Hidden -PassThru
+    $proc.Id | Set-Content $pidfile
+    if ($AsDaemon) {
+        Ok "Frontend started in background (PID: $($proc.Id))"
+        Info "Logs: $logfile"
+    } else {
+        Ok "Frontend dev server started (PID: $($proc.Id))"
+    }
+    Pop-Location
+}
+
+# --- Stop the frontend -----------------------------------
+function Stop-Frontend {
+    $pidfile = Join-Path $PidDir "frontend.pid"
+    if (Is-Running -PidFile $pidfile) {
+        $pidValue = Get-Content $pidfile
+        Info "Stopping frontend (PID: $pidValue)..."
+        try {
+            Stop-Process -Id $pidValue -Force -ErrorAction SilentlyContinue
+        } catch { }
+        Remove-Item $pidfile -Force -ErrorAction SilentlyContinue
+        Ok "Frontend stopped"
+    } else {
+        Warn "Frontend is not running"
+    }
+}
+
+# --- Status ---------------------------------------------
 function Show-Status {
     Write-Host ""
-    Write-Host "┌─ ReCallBook Status ─────────────────────────┐" -ForegroundColor Cyan
+    Write-Host "+- ReCallBook Status -------------------------" -ForegroundColor Cyan
 
     $mysqlStatus = Get-ServiceStatus -CheckUrl "http://localhost:3306"
     $qdrantStatus = Get-ServiceStatus -CheckUrl "http://localhost:6333/healthz"
     $ollamaStatus = Get-ServiceStatus -CheckUrl "http://localhost:11434/api/tags"
     $appStatus = Get-ServiceStatus -CheckUrl "http://localhost:3000/api/health"
+    $frontendPidFile = Join-Path $PidDir "frontend.pid"
+    $frontendStatus = if (Is-Running -PidFile $frontendPidFile) { "running" } else { "stopped" }
 
     # MySQL check via docker
     try {
@@ -190,60 +245,90 @@ function Show-Status {
 
     $statusColor = @{ "running" = "Green"; "stopped" = "Red" }
 
-    Write-Host "│ MySQL    " -NoNewline; Write-Host "● $mysqlStatus" -ForegroundColor $statusColor[$mysqlStatus] -NoNewline; Write-Host "                           │" -ForegroundColor Cyan
-    Write-Host "│ Qdrant   " -NoNewline; Write-Host "● $qdrantStatus" -ForegroundColor $statusColor[$qdrantStatus] -NoNewline; Write-Host "                           │" -ForegroundColor Cyan
-    Write-Host "│ Ollama   " -NoNewline; Write-Host "● $ollamaStatus" -ForegroundColor $statusColor[$ollamaStatus] -NoNewline; Write-Host "                           │" -ForegroundColor Cyan
-    Write-Host "│ App      " -NoNewline; Write-Host "● $appStatus" -ForegroundColor $statusColor[$appStatus] -NoNewline; Write-Host "                           │" -ForegroundColor Cyan
-    Write-Host "└──────────────────────────────────────────────┘" -ForegroundColor Cyan
+    Write-Host "| MySQL    " -NoNewline; Write-Host "* $mysqlStatus" -ForegroundColor $statusColor[$mysqlStatus] -NoNewline; Write-Host "                           |" -ForegroundColor Cyan
+    Write-Host "| Qdrant   " -NoNewline; Write-Host "* $qdrantStatus" -ForegroundColor $statusColor[$qdrantStatus] -NoNewline; Write-Host "                           |" -ForegroundColor Cyan
+    Write-Host "| Ollama   " -NoNewline; Write-Host "* $ollamaStatus" -ForegroundColor $statusColor[$ollamaStatus] -NoNewline; Write-Host "                           |" -ForegroundColor Cyan
+    Write-Host "| App      " -NoNewline; Write-Host "* $appStatus" -ForegroundColor $statusColor[$appStatus] -NoNewline; Write-Host "                           |" -ForegroundColor Cyan
+    Write-Host "| Frontend " -NoNewline; Write-Host "* $frontendStatus" -ForegroundColor $statusColor[$frontendStatus] -NoNewline; Write-Host "                           |" -ForegroundColor Cyan
+    Write-Host "+----------------------------------------------" -ForegroundColor Cyan
     Write-Host ""
 }
 
-# ─── Logs ───────────────────────────────────────────────
+# --- Logs -----------------------------------------------
 function Show-Logs {
     param([string]$Service)
     $logfile = Join-Path $LogDir "app.log"
 
-    if ($Service -and $Service -ne "app") {
+    $frontendLogfile = Join-Path $LogDir "frontend.log"
+
+    if ($Service -and $Service -ne "app" -and $Service -ne "frontend") {
         Err "Unknown service: $Service"
-        Err "Available: app"
+        Err "Available: app, frontend"
         exit 1
     }
 
-    if (-not (Test-Path $logfile)) {
-        Warn "No log file found: $logfile"
-        Info "The app may not have been started in daemon mode yet."
+    if (-not $Service) {
+        if (-not (Test-Path $logfile)) {
+            Warn "No log file found: $logfile"
+            return
+        }
+        Get-Content $logfile -Wait -Tail 50
         return
     }
 
-    Get-Content $logfile -Wait -Tail 50
+    switch ($Service) {
+        "app" {
+            if (-not (Test-Path $logfile)) {
+                Warn "No log file found: $logfile"
+                Info "The app may not have been started in daemon mode yet."
+                return
+            }
+            Get-Content $logfile -Wait -Tail 50
+        }
+        "frontend" {
+            if (-not (Test-Path $frontendLogfile)) {
+                Warn "No log file found: $frontendLogfile"
+                Info "The frontend may not have been started yet."
+                return
+            }
+            Get-Content $frontendLogfile -Wait -Tail 50
+        }
+    }
 }
 
-# ─── Start ──────────────────────────────────────────────
+# --- Start ----------------------------------------------
 function Invoke-Start {
     Ensure-Dirs
     Start-Data
     Ensure-Ollama
 
     if ($Daemon) {
+        Start-Frontend -AsDaemon
         Start-App -AsDaemon
         Write-Host ""
         Ok "All services started in background"
         Show-Status
     } else {
-        Start-App
+        try {
+            Start-Frontend
+            Start-App
+        } finally {
+            Stop-Frontend
+        }
     }
 }
 
-# ─── Stop ───────────────────────────────────────────────
+# --- Stop -----------------------------------------------
 function Invoke-Stop {
     Ensure-Dirs
+    Stop-Frontend
     Stop-App
     Stop-Data
     Write-Host ""
     Ok "All services stopped"
 }
 
-# ─── Service Install ────────────────────────────────────
+# --- Service Install ------------------------------------
 function Install-Service {
     Info "Installing ReCallBook as a Windows scheduled task..."
 
@@ -263,7 +348,7 @@ function Install-Service {
     }
 }
 
-# ─── Service Uninstall ──────────────────────────────────
+# --- Service Uninstall ----------------------------------
 function Uninstall-Service {
     Info "Removing ReCallBook scheduled task..."
     $taskName = "ReCallBook"
@@ -275,7 +360,7 @@ function Uninstall-Service {
     }
 }
 
-# ─── Help ───────────────────────────────────────────────
+# --- Help -----------------------------------------------
 function Show-Help {
     @"
 ReCallBook Control Script
@@ -286,7 +371,7 @@ Commands:
   start [-Daemon]     Start all services (interactive or background)
   stop                Stop all services
   status              Show status of all services
-  logs [app]          Tail logs (currently only 'app' supported)
+  logs [app|frontend] Tail logs (default: app)
   service install     Enable auto-start on login
   service uninstall   Disable auto-start on login
   help                Show this help message
@@ -301,7 +386,7 @@ Examples:
 "@
 }
 
-# ─── Main ───────────────────────────────────────────────
+# --- Main -----------------------------------------------
 switch ($Command) {
     "start" {
         Invoke-Start
