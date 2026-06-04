@@ -1,12 +1,17 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
+import { useThemeStore } from "../stores/theme";
 import Spinner from "../components/common/Spinner.vue";
 
 const email = ref("");
 const password = ref("");
 const auth = useAuthStore();
+const theme = useThemeStore();
+const logoSrc = computed(() =>
+  theme.resolvedTheme === "light" ? "/logo_black.png" : "/logo_white.png"
+);
 const router = useRouter();
 
 async function onSubmit() {
@@ -19,7 +24,7 @@ async function onSubmit() {
   <div class="min-h-full flex items-center justify-center bg-oc-dark p-6">
     <div class="w-full max-w-sm">
       <div class="flex items-center gap-3 mb-8 justify-center">
-        <span class="w-8 h-8 rounded-btn bg-oc-surface border border-warm grid place-items-center font-bold text-oc-light text-sm">R</span>
+        <img :src="logoSrc" class="h-8 w-auto" alt="RecallBook" />
         <span class="text-xl font-bold text-oc-light">RecallBook</span>
       </div>
       <form @submit.prevent="onSubmit" class="space-y-4">

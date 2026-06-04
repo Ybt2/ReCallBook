@@ -1,10 +1,15 @@
 <script setup>
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
 import { useAuthStore } from "../../stores/auth";
+import { useThemeStore } from "../../stores/theme";
 
 const router = useRouter();
 const auth = useAuthStore();
+const theme = useThemeStore();
+const logoSrc = computed(() =>
+  theme.resolvedTheme === "light" ? "/logo_black.png" : "/logo_white.png"
+);
 const showDropdown = ref(false);
 
 function logout() {
@@ -33,7 +38,7 @@ defineProps({
   <header class="h-14 bg-oc-dark border-b border-warm px-5 flex items-center justify-between shrink-0">
     <div class="flex items-center gap-3">
       <router-link to="/dashboard" class="flex items-center gap-2 font-bold text-oc-light">
-        <span class="w-7 h-7 rounded-btn bg-oc-surface border border-warm text-oc-light grid place-items-center text-sm">R</span>
+        <img :src="logoSrc" class="h-7 w-auto" alt="RecallBook" />
         RecallBook
       </router-link>
     </div>
