@@ -1,11 +1,13 @@
 <script setup>
 import { ref } from "vue";
+import { useI18n } from "vue-i18n";
 import { useNotebookStore } from "../../stores/notebook";
 import { useModelStore } from "../../stores/models";
 import { useToastStore } from "../../stores/toast";
 import Spinner from "../common/Spinner.vue";
 import AppModal from "../common/AppModal.vue";
 
+const { t } = useI18n();
 const store = useNotebookStore();
 const modelStore = useModelStore();
 const toasts = useToastStore();
@@ -16,22 +18,22 @@ const count = ref(15);
 const difficulty = ref("medium");
 
 const countOptions = [
-  { value: 8, label: "A few (8)" },
-  { value: 15, label: "Moderate (15)" },
-  { value: 25, label: "A lot (25)" },
+  { value: 8, label: () => t("flashcardsTool.few") },
+  { value: 15, label: () => t("flashcardsTool.moderate") },
+  { value: 25, label: () => t("flashcardsTool.aLot") },
 ];
 
 function openConfig() {
   if (!store.selectedDocIds.size) {
-    toasts.error("Select at least one document first.");
+    toasts.error(t("flashcardsTool.selectDocFirst"));
     return;
   }
   if (!modelStore.hasModels) {
-    toasts.error("No model configured. Go to Settings to configure a model.");
+    toasts.error(t("flashcardsTool.noModelConfigured"));
     return;
   }
   if (store.isGenerating || store.streaming) {
-    toasts.error("A generation is already in progress.");
+    toasts.error(t("flashcardsTool.generationInProgress"));
     return;
   }
   showConfig.value = true;
@@ -47,7 +49,7 @@ async function generate() {
       count: Number(count.value),
       difficulty: difficulty.value,
     });
-    if (completed) toasts.success("Flashcards generated");
+    if (completed) toasts.success(t("flashcardsTool.flashcardsGenerated"));
   } catch (e) {
     toasts.error(e.message);
   }
@@ -55,7 +57,7 @@ async function generate() {
 
 function stopGeneration() {
   store.stopTool();
-  toasts.success("Generation stopped.");
+  toasts.success(t("flashcardsTool.generationStopped"));
 }
 </script>
 
@@ -69,7 +71,7 @@ function stopGeneration() {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="4" y="4" width="16" height="16" rx="2"/>
       </svg>
-      <span class="text-xs font-medium">Stop</span>
+      <span class="text-xs font-medium">{{ $t("flashcardsTool.stop") }}</span>
     </button>
 
     <button
@@ -81,37 +83,37 @@ function stopGeneration() {
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/>
       </svg>
-      <span class="text-xs font-medium">Flashcards</span>
+      <span class="text-xs font-medium">{{ $t("flashcardsTool.flashcards") }}</span>
     </button>
 
-    <AppModal :show="showConfig" title="Create Flashcards" size="md" @close="showConfig = false">
+    <AppModal :show="showConfig" :title="$t('flashcardsTool.createFlashcards')" size="md" @close="showConfig = false">
       <div class="p-5 space-y-4">
         <div>
-          <label class="label">Prompt (optional)</label>
-          <textarea v-model="prompt" rows="3" class="input resize-none" placeholder="e.g. Key terms for exam review" />
+          <label class="label">{{ $t("flashcardsTool.promptOptional") }}</label>
+          <textarea v-model="prompt" rows="3" class="input resize-none" :placeholder="$t('flashcardsTool.promptPlaceholder')" />
         </div>
         <div class="grid grid-cols-2 gap-2">
           <div>
-            <label class="label">Number of cards</label>
+            <label class="label">{{ $t("flashcardsTool.numCards") }}</label>
             <select v-model="count" class="input">
-              <option v-for="opt in countOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+              <option v-for="opt in countOptions" :key="opt.value" :value="opt.value">{{ opt.label() }}</option>
             </select>
           </div>
           <div>
-            <label class="label">Difficulty</label>
+            <label class="label">{{ $t("flashcardsTool.difficulty") }}</label>
             <select v-model="difficulty" class="input">
-              <option value="easy">Easy</option>
-              <option value="medium">Medium</option>
-              <option value="hard">Hard</option>
+              <option value="easy">{{ $t("flashcardsTool.easy") }}</option>
+              <option value="medium">{{ $t("flashcardsTool.medium") }}</option>
+              <option value="hard">{{ $t("flashcardsTool.hard") }}</option>
             </select>
           </div>
         </div>
       </div>
       <template #footer>
-        <button class="btn-ghost" @click="showConfig = false">Cancel</button>
+        <button class="btn-ghost" @click="showConfig = false">{{ $t("flashcardsTool.cancel") }}</button>
         <button class="btn-primary" :disabled="store.loading.tool || !store.selectedDocIds.size" @click="generate">
           <Spinner v-if="store.loading.tool" />
-          <span>Generate</span>
+          <span>{{ $t("flashcardsTool.generate") }}</span>
         </button>
       </template>
     </AppModal>

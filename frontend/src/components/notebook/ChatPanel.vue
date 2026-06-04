@@ -1,5 +1,6 @@
 <script setup>
 import { ref, nextTick, watch, computed, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
 import { useNotebookStore } from "../../stores/notebook";
 import { useModelStore } from "../../stores/models";
 import { useToastStore } from "../../stores/toast";
@@ -7,6 +8,7 @@ import { OllamaAPI } from "../../api/ollama";
 import Spinner from "../common/Spinner.vue";
 import ChatMessage from "./ChatMessage.vue";
 
+const { t } = useI18n();
 const store = useNotebookStore();
 const modelStore = useModelStore();
 const toasts = useToastStore();
@@ -70,11 +72,11 @@ watch(() => store.streaming?.stages?.length, scrollBottom);
 async function submit() {
   if (disabled.value) return;
   if (store.selectedModel && models.value.length && !models.value.some((m) => m.name === store.selectedModel)) {
-    toasts.error(`Model "${store.selectedModel}" is not available. Please select a valid model.`);
+    toasts.error(t("chatPanel.modelNotAvailable", { name: store.selectedModel }));
     return;
   }
   if (!store.selectedModel && !modelStore.hasModels) {
-    toasts.error("No model configured. Go to Settings to configure a model.");
+    toasts.error(t("chatPanel.noModelConfigured"));
     return;
   }
   const text = input.value;
@@ -121,7 +123,7 @@ async function installModel() {
   await OllamaAPI.pull(name, {
     onProgress: (p) => (installProgress.value = p),
     onDone: async () => {
-      toasts.success(`Model "${name}" installed`);
+      toasts.success(t("chatPanel.modelInstalled", { name }));
       newModelName.value = "";
       installing.value = false;
       installProgress.value = null;
@@ -129,7 +131,7 @@ async function installModel() {
       store.setModel(name);
     },
     onError: (m) => {
-      toasts.error(`Install failed: ${m}`);
+      toasts.error(t("chatPanel.installFailed", { message: m }));
       installing.value = false;
       installProgress.value = null;
     },
@@ -143,9 +145,9 @@ function onSourceClick(s) {
 async function pinMessage(message) {
   try {
     await store.pinMessage(message);
-    toasts.success("Answer pinned as note");
+    toasts.success(t("chatPanel.answerPinned"));
   } catch (e) {
-    toasts.error(e.message || "Failed to pin");
+    toasts.error(e.message || t("chatPanel.failedToPin"));
   }
 }
 </script>
@@ -154,26 +156,25 @@ async function pinMessage(message) {
   <section class="flex flex-col bg-oc-dark min-h-0 h-full">
     <div class="px-4 sm:px-5 py-3 border-b border-warm bg-oc-dark shrink-0 flex items-center justify-between">
       <div>
-        <h2 class="font-bold text-sm text-oc-light">Chat</h2>
+        <h2 class="font-bold text-sm text-oc-light">{{ $t("chatPanel.chat") }}</h2>
       </div>
       <div class="text-[11px] text-oc-mid hidden sm:block">
-        {{ store.selectedDocIds.size }} source(s) active
+        {{ $t("chatPanel.sourcesActive", { count: store.selectedDocIds.size }) }}
       </div>
     </div>
 
     <div ref="scroller" class="flex-1 overflow-y-auto scrollbar-thin px-3 sm:px-6 py-4 sm:py-6 space-y-4 min-h-0">
       <div v-if="store.loading.messages" class="text-sm text-oc-mid flex items-center gap-2">
-        <Spinner /> Loading conversation…
+        <Spinner /> {{ $t("chatPanel.loadingConversation") }}
       </div>
       <div
         v-else-if="!store.messages.length && !store.streaming"
         class="max-w-md mx-auto text-center text-oc-mid mt-6 sm:mt-10"
       >
         <div class="w-12 h-12 rounded-full bg-oc-surface text-oc-light grid place-items-center mx-auto text-xl font-bold mb-3 border border-warm">R</div>
-        <div class="text-oc-light font-medium">Start the conversation</div>
+        <div class="text-oc-light font-medium">{{ $t("chatPanel.startConversation") }}</div>
         <p class="text-sm mt-1">
-          Select the files you want to include, then ask a question.
-          Answers will cite their sources.
+          {{ $t("chatPanel.startConversationDesc") }}
         </p>
       </div>
 
@@ -228,7 +229,7 @@ async function pinMessage(message) {
     <div class="p-3 shrink-0">
       <div v-if="installing" class="max-w-4xl mx-auto mb-2">
         <div class="flex items-center justify-between text-[11px] text-oc-mid mb-1">
-          <span class="truncate">Installing {{ newModelName }} · {{ installProgress?.status || "…" }}</span>
+           <span class="truncate">{{ $t("chatPanel.installing", { name: newModelName, status: installProgress?.status || "…" }) }}</span>
           <span v-if="installProgress?.percent != null">{{ installProgress.percent }}%</span>
         </div>
         <div class="h-1.5 bg-oc-surface rounded-full overflow-hidden">
@@ -246,7 +247,7 @@ async function pinMessage(message) {
             rows="1"
             class="w-full bg-transparent text-sm text-oc-light placeholder-oc-mid px-4 pt-3 pb-2 resize-none max-h-40 outline-none border-none focus:ring-0"
             :class="{ 'opacity-50 cursor-not-allowed': store.isGenerating || store.loading.upload || !store.documents.length }"
-            :placeholder="store.loading.upload ? 'Uploading files…' : (!store.documents.length ? 'Upload at least one document to start chatting…' : (store.isGenerating ? 'Generating…' : (!store.selectedModel && !modelStore.hasModels ? 'Configure models in Settings to start chatting…' : 'Ask about your sources…')))"
+            :placeholder="store.loading.upload ? $t('chatPanel.placeholderUploading') : (!store.documents.length ? $t('chatPanel.placeholderNoDocs') : (store.isGenerating ? $t('chatPanel.placeholderGenerating') : (!store.selectedModel && !modelStore.hasModels ? $t('chatPanel.placeholderNoModel') : $t('chatPanel.placeholderAsk'))))"
             :disabled="store.isGenerating || store.loading.upload || !store.documents.length"
             @keydown="onKey"
           />
@@ -273,15 +274,15 @@ async function pinMessage(message) {
                 class="absolute bottom-full left-0 mb-2 w-72 bg-oc-surface border border-warm rounded-btn z-30 p-2 space-y-1"
               >
                 <div class="flex items-center justify-between px-2 py-1">
-                  <span class="text-[11px] font-bold text-oc-mid uppercase">Installed</span>
+                  <span class="text-[11px] font-bold text-oc-mid uppercase">{{ $t("common.installed") }}</span>
                   <button
                     class="text-[11px] text-brand-500 hover:underline"
                     @click="loadModels"
                     :disabled="loadingModels"
-                  >{{ loadingModels ? "…" : "refresh" }}</button>
+                  >{{ loadingModels ? "…" : $t("common.refresh") }}</button>
                 </div>
                 <div v-if="!models.length" class="text-xs text-oc-mid px-2 py-1">
-                  No models found. Install one below.
+                  {{ $t("common.noModelsFound") }}
                 </div>
                 <button
                   type="button"
@@ -289,7 +290,7 @@ async function pinMessage(message) {
                   :class="!store.selectedModel ? 'bg-oc-dark text-brand-500' : 'text-oc-mid'"
                   @click="pickModel('__general__')"
                 >
-                  <span class="truncate">General (from settings)</span>
+                  <span class="truncate">{{ $t("common.generalFromSettings") }}</span>
                   <span v-if="modelStore.generalModel" class="text-[10px] text-oc-mid ml-2">{{ modelStore.generalModel }}</span>
                 </button>
                 <button
@@ -304,12 +305,12 @@ async function pinMessage(message) {
                   <span v-if="m.parameterSize" class="text-[10px] text-oc-mid ml-2">{{ m.parameterSize }}</span>
                 </button>
                 <div class="border-t border-warm pt-2 mt-2">
-                  <div class="text-[11px] font-bold text-oc-mid uppercase px-2 mb-1">Install new</div>
+                  <div class="text-[11px] font-bold text-oc-mid uppercase px-2 mb-1">{{ $t("common.installNew") }}</div>
                   <div class="flex gap-1 px-1">
                     <input
                       v-model="newModelName"
                       class="input !py-1.5 !text-xs flex-1"
-                      placeholder="e.g. llama3.2:3b"
+                      :placeholder="$t('common.modelPlaceholder')"
                       :disabled="installing"
                       @keydown.enter.prevent="installModel"
                     />
@@ -319,7 +320,7 @@ async function pinMessage(message) {
                       @click="installModel"
                     >
                       <Spinner v-if="installing" :size="10" />
-                      <span v-else>Pull</span>
+                      <span v-else>{{ $t("common.pull") }}</span>
                     </button>
                   </div>
                 </div>
@@ -331,7 +332,7 @@ async function pinMessage(message) {
                 class="w-8 h-8 rounded-lg bg-brand-500 hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                 :disabled="!store.streaming && disabled"
                 @click="store.streaming ? store.stopStreaming() : submit()"
-                :aria-label="store.streaming ? 'Stop generating' : 'Send message'"
+                :aria-label="store.streaming ? $t('chatPanel.stopGenerating') : $t('chatPanel.sendMessage')"
               >
                 <svg v-if="store.streaming" width="12" height="12" viewBox="0 0 12 12" fill="white">
                   <rect x="0" y="0" width="12" height="12" rx="2"/>
@@ -346,7 +347,7 @@ async function pinMessage(message) {
         </div>
 
         <div class="text-[11px] text-oc-muted text-center mt-1.5 hidden sm:block">
-          ReCallBook may be inaccurate. We advise verifying the answers.
+          {{ $t("chatPanel.disclaimer") }}
         </div>
       </div>
 
@@ -358,8 +359,8 @@ async function pinMessage(message) {
           :disabled="store.streaming || store.loading.upload"
         />
         <div class="mt-2 flex justify-end gap-2">
-          <button class="btn-ghost !py-1.5 !px-2.5 !text-xs" @click="cancelEditLast">Cancel</button>
-          <button class="btn-primary !py-1.5 !px-2.5 !text-xs" :disabled="!editText.trim()" @click="saveEditLast">Resend</button>
+          <button class="btn-ghost !py-1.5 !px-2.5 !text-xs" @click="cancelEditLast">{{ $t("chatPanel.cancel") }}</button>
+          <button class="btn-primary !py-1.5 !px-2.5 !text-xs" :disabled="!editText.trim()" @click="saveEditLast">{{ $t("chatPanel.resend") }}</button>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 <script setup>
 import { onMounted, ref, computed, watch } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { useNotebooksStore } from "../stores/notebooks";
 import { useToastStore } from "../stores/toast";
 import AppHeader from "../components/common/AppHeader.vue";
@@ -9,6 +10,7 @@ import Spinner from "../components/common/Spinner.vue";
 import CreateNotebookModal from "../components/dashboard/CreateNotebookModal.vue";
 import NotebookCard from "../components/dashboard/NotebookCard.vue";
 
+const { t } = useI18n();
 const store = useNotebooksStore();
 const toasts = useToastStore();
 const router = useRouter();
@@ -40,15 +42,15 @@ function open(id) {
 
 async function onCreated(nb) {
   showCreate.value = false;
-  toasts.success(`Notebook "${nb.titulo}" created`);
-  router.push({ name: "notebook", params: { id: nb.id } });
+    toasts.success(t("dashboard.created", { name: nb.titulo }));
+    router.push({ name: "notebook", params: { id: nb.id } });
 }
 
 async function doDelete() {
   if (!confirmDelete.value) return;
   try {
     await store.remove(confirmDelete.value.id);
-    toasts.success("Notebook deleted");
+    toasts.success(t("dashboard.deleted"));
   } catch (e) {
     toasts.error(e.message);
   } finally {
@@ -64,36 +66,36 @@ async function doDelete() {
     <main class="flex-1 px-6 py-8 max-w-7xl w-full mx-auto">
       <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
-          <h1 class="text-2xl font-bold text-oc-light">Your notebooks</h1>
+          <h1 class="text-2xl font-bold text-oc-light">{{ $t("dashboard.yourNotebooks") }}</h1>
           <p class="text-sm text-oc-mid mt-1">
-            Create a notebook, upload sources, then chat and study.
+            {{ $t("dashboard.subtitle") }}
           </p>
         </div>
         <div class="flex items-center gap-2">
           <input
             v-model="search"
             class="input !w-64 !py-3"
-            placeholder="Search notebooks…"
+            :placeholder="$t('dashboard.searchPlaceholder')"
           />
           <button class="btn-primary" @click="showCreate = true">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 5v14M5 12h14" stroke-linecap="round" />
             </svg>
-            New notebook
+            {{ $t("dashboard.newNotebook") }}
           </button>
         </div>
       </div>
 
       <div v-if="store.loading" class="flex items-center gap-2 text-oc-mid">
-        <Spinner /> Loading…
+        <Spinner /> {{ $t("dashboard.loading") }}
       </div>
 
       <div v-else-if="filtered.length === 0" class="card p-10 text-center">
-        <div class="text-lg font-bold text-oc-light">No notebooks yet</div>
+        <div class="text-lg font-bold text-oc-light">{{ $t("dashboard.noNotebooksYet") }}</div>
         <p class="text-oc-mid text-sm mt-1">
-          Create your first notebook to start uploading PDFs and chatting with your notes.
+          {{ $t("dashboard.noNotebooksDesc") }}
         </p>
-        <button class="btn-primary mt-4" @click="showCreate = true">Create notebook</button>
+        <button class="btn-primary mt-4" @click="showCreate = true">{{ $t("dashboard.createNotebook") }}</button>
       </div>
 
       <div
@@ -118,18 +120,16 @@ async function doDelete() {
 
     <AppModal
       :show="!!confirmDelete"
-      title="Delete notebook"
+      :title="$t('dashboard.deleteNotebook')"
       size="sm"
       @close="confirmDelete = null"
     >
       <div class="p-5 text-sm text-oc-mid">
-        Are you sure you want to delete
-        <span class="font-bold text-oc-light">"{{ confirmDelete?.titulo }}"</span>? This will
-        remove all its files, chats and generated items.
+        {{ $t("dashboard.deleteConfirm", { name: confirmDelete?.titulo }) }}
       </div>
       <template #footer>
-        <button class="btn-secondary" @click="confirmDelete = null">Cancel</button>
-        <button class="btn-danger" @click="doDelete">Delete</button>
+        <button class="btn-secondary" @click="confirmDelete = null">{{ $t("common.cancel") }}</button>
+        <button class="btn-danger" @click="doDelete">{{ $t("common.delete") }}</button>
       </template>
     </AppModal>
   </div>

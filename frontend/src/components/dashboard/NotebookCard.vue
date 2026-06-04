@@ -1,5 +1,7 @@
 <script setup>
 import { computed } from "vue";
+import { useI18n } from "vue-i18n";
+const { t } = useI18n();
 const props = defineProps({ notebook: Object });
 defineEmits(["open", "delete"]);
 
@@ -39,17 +41,17 @@ const color = computed(() => colors[hashId(props.notebook.id) % colors.length]);
       class="h-28 bg-oc-surface flex items-end p-3 border-b border-warm"
     >
       <div class="text-oc-mid text-xs font-medium">
-        {{ notebook.fileCount || 0 }} file{{ (notebook.fileCount || 0) === 1 ? "" : "s" }}
+        {{ $t("notebookCard.files", { count: notebook.fileCount || 0 }) }}
       </div>
     </div>
     <div class="p-4 flex items-start justify-between gap-2">
       <div class="min-w-0">
         <div class="font-bold text-oc-light truncate">{{ notebook.titulo }}</div>
-        <div class="text-xs text-oc-mid mt-0.5">Updated {{ date }}</div>
+        <div class="text-xs text-oc-mid mt-0.5">{{ $t("notebookCard.updated", { date }) }}</div>
       </div>
       <button
         class="btn-ghost !p-1.5 opacity-0 group-hover:opacity-100 text-oc-mid hover:text-danger"
-        title="Delete"
+        :title="$t('notebookCard.delete')"
         @click.stop="$emit('delete')"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

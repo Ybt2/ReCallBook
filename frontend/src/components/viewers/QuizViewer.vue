@@ -1,7 +1,9 @@
 <script setup>
 import { ref, computed, onMounted } from "vue";
+import { useI18n } from "vue-i18n";
 import { ToolsAPI } from "../../api/tools";
 
+const { t } = useI18n();
 const props = defineProps({
   data: Object,
   assetId: [String, Number],
@@ -94,7 +96,7 @@ function backToResult() {
 <template>
   <div class="p-6">
     <div v-if="!questions.length" class="text-center text-oc-mid">
-      No questions available.
+      {{ $t("quizViewer.noQuestions") }}
     </div>
 
     <div v-else>
@@ -102,7 +104,7 @@ function backToResult() {
       <!-- ── RESULT SCREEN ── -->
       <div v-if="view === 'result'" class="space-y-4">
         <div class="card p-5 border-[#007aff]/30 bg-[#007aff]/10">
-          <div class="text-xs font-semibold uppercase tracking-wider text-[#007aff] mb-3">Last attempt</div>
+          <div class="text-xs font-semibold uppercase tracking-wider text-[#007aff] mb-3">{{ $t("quizViewer.lastAttempt") }}</div>
           <div class="text-3xl font-semibold text-oc-light mb-1">
             {{ savedResult?.score ?? score }} / {{ savedResult?.total ?? questions.length }}
           </div>
@@ -111,13 +113,13 @@ function backToResult() {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
-              {{ savedResult?.score ?? score }} correct
+              {{ $t("quizViewer.correct", { count: savedResult?.score ?? score }) }}
             </span>
             <span class="flex items-center gap-1.5 text-danger">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
               </svg>
-              {{ savedResult ? (savedResult.total - savedResult.score) : wrong }} wrong
+              {{ $t("quizViewer.wrong", { count: savedResult ? (savedResult.total - savedResult.score) : wrong }) }}
             </span>
             <span v-if="savedResult?._at" class="text-oc-muted ml-auto text-[11px]">
               {{ new Date(savedResult._at).toLocaleDateString() }}
@@ -130,13 +132,13 @@ function backToResult() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-1.5 -mt-0.5">
               <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.5"/>
             </svg>
-            Retry
+            {{ $t("quizViewer.retry") }}
           </button>
           <button class="btn-primary flex-1" @click="revisit">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="inline-block mr-1.5 -mt-0.5">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
             </svg>
-            Revisit attempt
+            {{ $t("quizViewer.revisitAttempt") }}
           </button>
         </div>
       </div>
@@ -146,17 +148,17 @@ function backToResult() {
 
         <!-- Revisit banner -->
         <div v-if="view === 'revisit'" class="mb-4 flex items-center justify-between rounded-btn border border-warm bg-oc-surface px-4 py-2.5 text-sm text-oc-mid">
-          <span>Reviewing your last attempt</span>
+          <span>{{ $t("quizViewer.reviewingAttempt") }}</span>
           <button class="text-oc-light hover:text-[#007aff] transition-colors duration-fast font-medium" @click="backToResult">
-            ← Back to result
+            {{ $t("quizViewer.backToResult") }}
           </button>
         </div>
 
         <!-- Progress -->
         <div class="flex items-center justify-between mb-3 text-sm text-oc-mid">
-          <span>Question {{ current + 1 }} of {{ questions.length }}</span>
+          <span>{{ $t("quizViewer.questionOf", { current: current + 1, total: questions.length }) }}</span>
           <span v-if="view === 'quiz' && Object.keys(answers).length > 0" class="text-[11px] text-oc-muted">
-            {{ Object.keys(answers).length }} / {{ questions.length }} answered
+            {{ $t("quizViewer.answered", { count: Object.keys(answers).length, total: questions.length }) }}
           </span>
         </div>
 
@@ -193,24 +195,24 @@ function backToResult() {
             v-if="(submitted || view === 'revisit') && q.explanation"
             class="mt-4 text-sm text-oc-mid bg-oc-surface border border-warm rounded-btn p-3"
           >
-            <span class="font-medium text-oc-light">Explanation: </span>{{ q.explanation }}
+            <span class="font-medium text-oc-light">{{ $t("quizViewer.explanation") }}</span>{{ q.explanation }}
           </div>
         </div>
 
         <!-- Navigation -->
         <div class="flex items-center justify-between mt-4">
-          <button class="btn-secondary" :disabled="current === 0" @click="prev">Previous</button>
+          <button class="btn-secondary" :disabled="current === 0" @click="prev">{{ $t("quizViewer.previous") }}</button>
           <button
             v-if="current < questions.length - 1"
             class="btn-primary"
             @click="next"
-          >Next</button>
+          >{{ $t("quizViewer.next") }}</button>
           <button
             v-else-if="view === 'quiz' && !submitted"
             class="btn-primary"
             :disabled="saving"
             @click="submit"
-          >{{ saving ? 'Saving…' : 'Submit' }}</button>
+          >{{ saving ? $t('quizViewer.saving') : $t('quizViewer.submit') }}</button>
         </div>
 
       </div>

@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useNotebookStore } from "../../stores/notebook";
 import { useToastStore } from "../../stores/toast";
 import Spinner from "../common/Spinner.vue";
 import ConfirmDialog from "../common/ConfirmDialog.vue";
 
+const { t } = useI18n();
 const store = useNotebookStore();
 const toasts = useToastStore();
 const emit = defineEmits(["open-pdf", "open-image"]);
@@ -41,7 +43,7 @@ async function onUpload(e) {
         uploadProgress.value = Math.round(fileBase + filePart);
       });
     }
-    toasts.success(`${picked.length} file(s) uploaded`);
+    toasts.success(t("filesPanel.uploaded", { count: picked.length }));
   } catch (err) {
     toasts.error(err.message);
   } finally {
@@ -56,7 +58,7 @@ async function confirmRemove() {
   confirmDelete.value = null;
   try {
     await store.removeDocument(d.id);
-    toasts.success("File deleted");
+    toasts.success(t("filesPanel.fileDeleted"));
   } catch (e) {
     toasts.error(e.message);
   }
@@ -67,7 +69,7 @@ async function confirmRemove() {
   <aside class="flex flex-col border-r border-warm bg-oc-dark min-h-0">
     <div class="px-4 py-3 border-b border-warm flex items-center justify-between shrink-0">
       <div>
-        <h2 class="font-bold text-sm text-oc-light">Sources</h2>
+        <h2 class="font-bold text-sm text-oc-light">{{ $t("filesPanel.sources") }}</h2>
       </div>
       <input
         ref="fileInput"
@@ -100,17 +102,17 @@ async function confirmRemove() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          Add
+          {{ $t("filesPanel.add") }}
         </template>
       </button>
     </div>
 
     <div class="flex-1 overflow-y-auto scrollbar-thin p-2 space-y-1 min-h-0">
       <div v-if="store.loading.documents" class="p-3 text-sm text-oc-mid flex items-center gap-2">
-        <Spinner /> Loading…
+        <Spinner /> {{ $t("filesPanel.loading") }}
       </div>
       <div v-else-if="!store.documents.length" class="p-5 text-center text-sm text-oc-mid">
-        Upload file to get started.
+        {{ $t("filesPanel.noFiles") }}
       </div>
       <label v-if="store.documents.length > 0" class="flex items-center gap-2 px-2 py-2 border-b border-warm text-xs shrink-0">
         <input
@@ -119,7 +121,7 @@ async function confirmRemove() {
           :checked="allSelected"
           @change="store.selectAllDocs($event.target.checked)"
         />
-        <span class="text-oc-mid">Select all</span>
+        <span class="text-oc-mid">{{ $t("filesPanel.selectAll") }}</span>
       </label>
       <div
         v-for="d in store.documents"
@@ -131,12 +133,12 @@ async function confirmRemove() {
           class="accent-brand-500 shrink-0"
           :checked="store.selectedDocIds.has(d.id)"
           @change="store.toggleDoc(d.id)"
-          :aria-label="'Select ' + d.name"
+          :aria-label="$t('filesPanel.selectFile', { name: d.name })"
         />
         <button
           class="flex-1 min-w-0 text-left flex items-center gap-2"
           @click="isImg(d) ? emit('open-image', d) : emit('open-pdf', d)"
-          :title="isImg(d) ? 'Open Image' : 'Open PDF'"
+          :title="isImg(d) ? $t('filesPanel.openImage') : $t('filesPanel.openPDF')"
         >
           <span
             v-if="isImg(d)"
@@ -160,7 +162,7 @@ async function confirmRemove() {
         </button>
         <button
           class="btn-ghost !p-1 opacity-0 group-hover:opacity-100 text-oc-mid hover:text-danger"
-          title="Delete"
+          :title="$t('filesPanel.delete')"
           @click="confirmDelete = d"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -173,8 +175,8 @@ async function confirmRemove() {
 
     <ConfirmDialog
       :show="!!confirmDelete"
-      title="Delete file"
-      :message="`Are you sure you want to delete &quot;${confirmDelete?.name}&quot;?`"
+      :title="$t('filesPanel.deleteFile')"
+      :message="t('filesPanel.deleteConfirm', { name: confirmDelete?.name || '' })"
       @confirm="confirmRemove"
       @cancel="confirmDelete = null"
     />

@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
+const { t } = useI18n();
 const props = defineProps({ data: Object });
 
 const cards = computed(() => props.data?.flashcards || []);
@@ -28,14 +30,14 @@ function prev() {
 <template>
   <div class="p-6">
     <div v-if="!cards.length" class="text-center text-oc-mid">
-      No flashcards available.
+      {{ $t("flashcardsViewer.noFlashcards") }}
     </div>
 
     <div v-else>
       <div class="flex items-center justify-between mb-3 text-sm text-oc-mid">
-        <span>Card {{ current + 1 }} of {{ cards.length }}</span>
+        <span>{{ $t("flashcardsViewer.cardOf", { current: current + 1, total: cards.length }) }}</span>
         <button v-if="card.hint" class="text-[#007aff] hover:underline" @click="showHint = !showHint">
-          {{ showHint ? "Hide hint" : "Show hint" }}
+          {{ showHint ? $t("flashcardsViewer.hideHint") : $t("flashcardsViewer.showHint") }}
         </button>
       </div>
 
@@ -64,16 +66,16 @@ function prev() {
       </div>
 
       <div v-if="showHint && card.hint" class="mt-3 text-sm text-oc-mid bg-oc-surface border border-warm rounded-btn p-3">
-        <span class="font-medium text-oc-light">Hint: </span>{{ card.hint }}
+        <span class="font-medium text-oc-light">{{ $t("flashcardsViewer.hint") }}</span>{{ card.hint }}
       </div>
 
       <div class="flex items-center justify-between mt-4">
-        <button class="btn-secondary" :disabled="current === 0" @click="prev">Previous</button>
-        <button class="btn-ghost" @click="flipped = !flipped">Flip card</button>
-        <button class="btn-primary" :disabled="current === cards.length - 1" @click="next">Next</button>
+        <button class="btn-secondary" :disabled="current === 0" @click="prev">{{ $t("flashcardsViewer.previous") }}</button>
+        <button class="btn-ghost" @click="flipped = !flipped">{{ $t("flashcardsViewer.flipCard") }}</button>
+        <button class="btn-primary" :disabled="current === cards.length - 1" @click="next">{{ $t("flashcardsViewer.next") }}</button>
       </div>
 
-      <div class="text-center text-xs text-oc-muted mt-3">Click the card to flip.</div>
+      <div class="text-center text-xs text-oc-muted mt-3">{{ $t("flashcardsViewer.clickToFlip") }}</div>
     </div>
   </div>
 </template>

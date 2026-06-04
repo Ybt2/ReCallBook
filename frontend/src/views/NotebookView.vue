@@ -1,5 +1,6 @@
 <script setup>
 import { onMounted, watch, ref, computed } from "vue";
+import { useI18n } from "vue-i18n";
 import { useNotebookStore } from "../stores/notebook";
 import AppHeader from "../components/common/AppHeader.vue";
 import FilesPanel from "../components/notebook/FilesPanel.vue";
@@ -14,6 +15,7 @@ import AppModal from "../components/common/AppModal.vue";
 import Spinner from "../components/common/Spinner.vue";
 import { ToolsAPI } from "../api/tools";
 
+const { t } = useI18n();
 const props = defineProps({ id: [String, Number] });
 const store = useNotebookStore();
 
@@ -83,13 +85,13 @@ function openSource(src) {
   <div class="h-full flex flex-col bg-oc-dark">
     <AppHeader
       :breadcrumbs="[
-        { label: 'Notebooks', to: '/dashboard' },
+        { label: t('notebook.notebooks'), to: '/dashboard' },
         { label: store.notebook?.titulo || '…' },
       ]"
     />
 
     <div v-if="store.loading.notebook" class="flex-1 flex items-center justify-center text-oc-mid gap-2">
-      <Spinner /> Loading notebook…
+      <Spinner /> {{ $t("notebook.loadingNotebook") }}
     </div>
 
     <template v-else>
@@ -120,7 +122,7 @@ function openSource(src) {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
             </svg>
-            Files
+            {{ $t("notebook.files") }}
             <span v-if="store.documents.length" class="text-[9px] opacity-70">{{ store.documents.length }}</span>
           </button>
           <button
@@ -131,7 +133,7 @@ function openSource(src) {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
             </svg>
-            Chat
+            {{ $t("notebook.chat") }}
           </button>
           <button
             class="py-3 flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors duration-fast"
@@ -141,7 +143,7 @@ function openSource(src) {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 2l2 7h7l-5.5 4 2 7L12 16l-5.5 4 2-7L3 9h7z"/>
             </svg>
-            Tools
+            {{ $t("notebook.tools") }}
             <span v-if="store.assets.length" class="text-[9px] opacity-70">{{ store.assets.length }}</span>
           </button>
         </nav>
@@ -173,7 +175,7 @@ function openSource(src) {
       @close="assetView = null"
     >
       <div v-if="loadingAsset" class="p-10 flex items-center justify-center gap-2 text-oc-mid">
-        <Spinner /> Loading…
+        <Spinner /> {{ $t("notebook.loading") }}
       </div>
       <QuizViewer
         v-else-if="assetView?.type === 'quiz'"

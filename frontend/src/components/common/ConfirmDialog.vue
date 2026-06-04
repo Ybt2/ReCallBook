@@ -18,7 +18,7 @@ const emit = defineEmits(["confirm", "cancel"]);
       {{ message }}
     </div>
     <template #footer>
-      <button class="btn-secondary" @click="emit('cancel')">Cancel</button>
+      <button class="btn-secondary" @click="emit('cancel')">{{ $t("confirmDialog.cancel") }}</button>
       <button
         :class="danger ? 'btn-danger' : 'btn-primary'"
         @click="emit('confirm')"

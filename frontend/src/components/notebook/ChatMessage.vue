@@ -99,7 +99,7 @@ async function copyContent() {
     <div v-if="!isUser" class="flex items-center gap-0.5 mt-2">
       <button
         class="w-6 h-6 flex items-center justify-center rounded-md text-oc-muted hover:text-brand-400 hover:bg-white/5 transition-colors"
-        title="Pin as note"
+        :title="$t('chatMessage.pinAsNote')"
         @click="emit('pin', message)"
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -109,7 +109,7 @@ async function copyContent() {
       <button
         class="w-6 h-6 flex items-center justify-center rounded-md transition-colors"
         :class="copied ? 'text-success' : 'text-oc-muted hover:text-oc-light hover:bg-white/5'"
-        :title="copied ? 'Copied!' : 'Copy'"
+        :title="copied ? $t('chatMessage.copied') : $t('chatMessage.copy')"
         @click="copyContent"
       >
         <svg v-if="!copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -130,7 +130,7 @@ async function copyContent() {
       <button
         v-if="isLastUser && !editDisabled"
         class="w-6 h-6 flex items-center justify-center rounded-md text-oc-muted hover:text-oc-light hover:bg-black/5 transition-colors"
-        title="Edit message"
+        :title="$t('chatMessage.editMessage')"
         @click="emit('edit-last')"
       >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -142,7 +142,7 @@ async function copyContent() {
         v-if="isLastUser"
         class="w-6 h-6 flex items-center justify-center rounded-md transition-colors"
         :class="copied ? 'text-success' : 'text-oc-muted hover:text-oc-light hover:bg-black/5'"
-        :title="copied ? 'Copied!' : 'Copy'"
+        :title="copied ? $t('chatMessage.copied') : $t('chatMessage.copy')"
         @click="copyContent"
       >
         <svg v-if="!copied" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">

@@ -28,6 +28,6 @@ onUnmounted(() => {
       :alt="doc.name"
       class="max-w-full max-h-full object-contain"
     />
-    <p v-else class="text-oc-mid text-sm">Unable to load image.</p>
+    <p v-else class="text-oc-mid text-sm">{{ $t("imageViewer.unableToLoad") }}</p>
   </div>
 </template>

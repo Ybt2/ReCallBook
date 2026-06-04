@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from "vue";
 import { useRouter } from "vue-router";
+import { useI18n } from "vue-i18n";
 import { useAuthStore, SUPPORTED_LANGUAGES } from "../stores/auth";
 import { useThemeStore } from "../stores/theme";
 import Spinner from "../components/common/Spinner.vue";
@@ -14,6 +15,7 @@ const theme = useThemeStore();
 const logoSrc = computed(() =>
   theme.resolvedTheme === "light" ? "/logo_black.png" : "/logo_white.png"
 );
+const { t } = useI18n();
 const router = useRouter();
 
 async function onSubmit() {
@@ -31,27 +33,27 @@ async function onSubmit() {
       </div>
       <form @submit.prevent="onSubmit" class="space-y-4">
         <div class="text-center mb-6">
-          <h2 class="text-[38px] font-bold leading-[1.50] text-oc-light">Create account</h2>
-          <p class="text-base text-oc-mid mt-2">Start organizing your knowledge.</p>
+          <h2 class="text-[38px] font-bold leading-[1.50] text-oc-light">{{ $t("signup.createAccount") }}</h2>
+          <p class="text-base text-oc-mid mt-2">{{ $t("signup.startOrganizing") }}</p>
         </div>
 
         <div>
-          <label class="label">Username</label>
-          <input v-model="username" required class="input" placeholder="jane" />
+          <label class="label">{{ $t("signup.username") }}</label>
+          <input v-model="username" required class="input" :placeholder="$t('signup.usernamePlaceholder')" />
         </div>
 
         <div>
-          <label class="label">Email</label>
-          <input v-model="email" type="email" required class="input" placeholder="you@example.com" />
+          <label class="label">{{ $t("signup.email") }}</label>
+          <input v-model="email" type="email" required class="input" :placeholder="$t('signup.emailPlaceholder')" />
         </div>
 
         <div>
-          <label class="label">Password</label>
+          <label class="label">{{ $t("signup.password") }}</label>
           <input v-model="password" type="password" required minlength="4" class="input" placeholder="••••••••" />
         </div>
 
         <div>
-          <label class="label">Language</label>
+          <label class="label">{{ $t("signup.language") }}</label>
           <select v-model="language" class="input">
             <option v-for="lang in SUPPORTED_LANGUAGES" :key="lang.value" :value="lang.value">
               {{ lang.label }}
@@ -63,12 +65,12 @@ async function onSubmit() {
 
         <button type="submit" class="btn-primary w-full" :disabled="auth.loading">
           <Spinner v-if="auth.loading" />
-          <span>Create account</span>
+          <span>{{ $t("signup.createAccountBtn") }}</span>
         </button>
 
         <p class="text-sm text-oc-mid mt-4 text-center">
-          Already have an account?
-          <router-link to="/login" class="text-oc-light underline font-medium">Sign in</router-link>
+          {{ $t("signup.alreadyHaveAccount") }}
+          <router-link to="/login" class="text-oc-light underline font-medium">{{ $t("signup.signIn") }}</router-link>
         </p>
       </form>
     </div>

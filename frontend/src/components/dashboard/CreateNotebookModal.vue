@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch } from "vue";
+import { useI18n } from "vue-i18n";
 import AppModal from "../common/AppModal.vue";
 import Spinner from "../common/Spinner.vue";
 import { useNotebooksStore } from "../../stores/notebooks";
@@ -9,6 +10,7 @@ import { useToastStore } from "../../stores/toast";
 const props = defineProps({ show: Boolean });
 const emit = defineEmits(["close", "created"]);
 
+const { t } = useI18n();
 const store = useNotebooksStore();
 const toasts = useToastStore();
 
@@ -39,12 +41,12 @@ async function submit() {
   if (!title.value.trim()) return;
   error.value = "";
   step.value = "processing";
-  progress.value = "Creating notebook…";
+  progress.value = t("createNotebookModal.creatingNotebook");
 
   try {
     const nb = await store.create(title.value.trim());
     for (let i = 0; i < files.value.length; i++) {
-      progress.value = `Uploading & processing ${i + 1}/${files.value.length}: ${files.value[i].name}`;
+      progress.value = t("createNotebookModal.uploadingFile", { current: i + 1, total: files.value.length, name: files.value[i].name });
       await DocumentsAPI.upload(nb.id, files.value[i]);
     }
     emit("created", nb);
@@ -57,19 +59,19 @@ async function submit() {
 </script>
 
 <template>
-  <AppModal :show="show" title="Create notebook" @close="$emit('close')">
+  <AppModal :show="show" :title="$t('createNotebookModal.title')" @close="$emit('close')">
     <div class="p-5 space-y-4">
       <div>
-        <label class="label">Notebook title</label>
+        <label class="label">{{ $t("createNotebookModal.notebookTitle") }}</label>
         <input
           v-model="title"
           class="input"
-          placeholder="e.g. Machine Learning 101"
+          :placeholder="$t('createNotebookModal.titlePlaceholder')"
           :disabled="step === 'processing'"
         />
       </div>
       <div>
-        <label class="label">Upload files (optional)</label>
+        <label class="label">{{ $t("createNotebookModal.uploadFiles") }}</label>
         <label
           class="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-oc-border rounded-btn p-6 cursor-pointer hover:border-oc-mid hover:bg-oc-dark/40"
           :class="{ 'pointer-events-none opacity-60': step === 'processing' }"
@@ -77,7 +79,7 @@ async function submit() {
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" class="text-oc-mid">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5-5 5 5M12 5v12" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span class="text-sm text-oc-mid">Click to browse or drop files</span>
+          <span class="text-sm text-oc-mid">{{ $t("createNotebookModal.clickToBrowse") }}</span>
           <input type="file" multiple accept="application/pdf,image/jpeg,image/png,image/svg+xml,text/plain,text/markdown,.md,.txt" class="hidden" @change="onPick" />
         </label>
         <ul v-if="files.length" class="mt-2 space-y-1 text-sm text-oc-light">
@@ -93,14 +95,14 @@ async function submit() {
       <p v-if="error" class="text-sm text-danger">{{ error }}</p>
     </div>
     <template #footer>
-      <button class="btn-secondary" :disabled="step === 'processing'" @click="$emit('close')">Cancel</button>
+      <button class="btn-secondary" :disabled="step === 'processing'" @click="$emit('close')">{{ $t("createNotebookModal.cancel") }}</button>
       <button
         class="btn-primary"
         :disabled="!title.trim() || step === 'processing'"
         @click="submit"
       >
         <Spinner v-if="step === 'processing'" />
-        <span>Create</span>
+        <span>{{ $t("createNotebookModal.create") }}</span>
       </button>
     </template>
   </AppModal>

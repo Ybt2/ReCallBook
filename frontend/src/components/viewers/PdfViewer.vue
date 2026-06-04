@@ -30,7 +30,7 @@ onUnmounted(() => {
       :title="doc.name"
     />
     <p v-else class="flex items-center justify-center h-full text-oc-mid text-sm">
-      Unable to load PDF.
+      {{ $t("pdfViewer.unableToLoad") }}
     </p>
   </div>
 </template>
