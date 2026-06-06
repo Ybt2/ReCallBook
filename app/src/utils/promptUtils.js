@@ -1,4 +1,4 @@
-const { createLlm } = require("../services/agent");
+const { directChat, directChatStream } = require("../services/directChat");
 
 function wordOverlapRatio(a, b) {
   const wordsA = new Set(a.toLowerCase().split(/\s+/).filter(Boolean));
@@ -24,8 +24,7 @@ async function buildQueries(userMessage, userLanguage, vectorStore, notebookId, 
     roughContext = "";
   }
 
-  const prompt = `
-You generate search queries for a document database.
+  const systemPrompt = `You generate search queries for a document database.
 
 STRICT RULES:
 - Use ONLY topics present in the CONTEXT
@@ -35,20 +34,23 @@ STRICT RULES:
 - One query per line
 - No numbering
 - No explanations
-- No extra text
+- No extra text`;
 
-CONTEXT:
+  const userPrompt = `CONTEXT:
 ${roughContext || "N/A"}
 
 USER QUESTION:
 ${userMessage}
-`;
+
+Generate 3 search queries in ${userLanguage}.`;
 
   let aiQueries = [];
   try {
-    const queryLlm = createLlm(queryModel);
-    const res = await queryLlm.invoke(prompt);
-    aiQueries = res.content
+    const result = await directChat(queryModel, [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userPrompt }
+    ]);
+    aiQueries = result.text
       .split("\n")
       .map((q) => q.trim())
       .filter(Boolean)
@@ -70,23 +72,17 @@ ${userMessage}
   return [...new Set([userMessage, ...aiQueries])];
 }
 
-function pickLlm(model) {
-  return createLlm(model);
-}
-
-function buildAnswerPrompt(query, context, history, userLanguage) {
-  return `LANGUAGE MANDATE: You MUST write this entire response in ${userLanguage}. Every single word must be in ${userLanguage}. Do not use any other language under any circumstances.
-
-You are a professional document analysis assistant. Answer the user's question using ONLY the provided CONTEXT.
+function buildChatMessages(query, context, history, userLanguage) {
+  const systemPrompt = `You are a professional document analysis assistant. Answer the user's question using ONLY the provided CONTEXT.
 
 STRICT RULES:
 1. LANGUAGE: You MUST answer in ${userLanguage}. Always use ${userLanguage} regardless of the question's language.
 2. FORMAT: Use plain text only. DO NOT wrap the response in code blocks, JSON, or JavaScript functions.
 3. CITATIONS: Use ONLY the format [n] (e.g., [1]) at the end of sentences. Use ONLY the number inside brackets.
 4. HONESTY: If the context doesn't have the answer, state that you don't know in ${userLanguage}.
-5. NO META-TALK: Do not mention your internal processes.
+5. NO META-TALK: Do not mention your internal processes.`;
 
-CONTEXT:
+  const userContent = `CONTEXT:
 ${context}
 
 HISTORY:
@@ -97,61 +93,28 @@ USER QUESTION: ${query}
 REMEMBER: Write the FINAL ANSWER entirely in ${userLanguage}.
 
 FINAL ANSWER:`;
+
+  return [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userContent }
+  ];
 }
 
 async function generateAnswer(query, context, history, userLanguage, model) {
-  const llm = pickLlm(model);
-  const prompt = buildAnswerPrompt(query, context, history, userLanguage);
-  const res = await llm.invoke(prompt);
-  const text = res.content.trim().replace(/^```[a-z]*\n?|```$/gi, "");
-  const usage = res.response_metadata?.usage || res.usage_metadata || null;
+  const messages = buildChatMessages(query, context, history, userLanguage);
+  const result = await directChat(model, messages, { num_predict: 2048 });
   return {
-    text,
-    usage: usage ? {
-      totalTokens: (usage.prompt_tokens || 0) + (usage.completion_tokens || 0) || usage.total_tokens || 0,
-      promptTokens: usage.prompt_tokens || usage.input_tokens || 0,
-      completionTokens: usage.completion_tokens || usage.output_tokens || 0,
-    } : null,
+    text: result.text,
+    usage: result.usage || null,
   };
 }
 
 async function streamAnswer(query, context, history, userLanguage, model, onToken) {
-  const llm = pickLlm(model);
-  const prompt = buildAnswerPrompt(query, context, history, userLanguage);
-
-  let full = "";
-  let lastUsage = null;
-  try {
-    const stream = await llm.stream(prompt);
-    for await (const chunk of stream) {
-      const piece = chunk?.content || "";
-      if (piece) {
-        full += piece;
-        if (onToken) {
-          try {
-            onToken(piece);
-          } catch (tokenErr) {
-            console.warn("Token delivery failed, aborting stream read:", tokenErr.message);
-            break;
-          }
-        }
-      }
-      if (chunk?.response_metadata?.usage || chunk?.usage_metadata) {
-        lastUsage = chunk.response_metadata?.usage || chunk.usage_metadata;
-      }
-    }
-  } catch (streamErr) {
-    console.error("[streamAnswer] Stream failed:", streamErr.message);
-    throw streamErr;
-  }
-  const text = full.trim().replace(/^```[a-z]*\n?|```$/gi, "");
+  const messages = buildChatMessages(query, context, history, userLanguage);
+  const result = await directChatStream(model, messages, onToken, { num_predict: 2048 });
   return {
-    text,
-    usage: lastUsage ? {
-      totalTokens: (lastUsage.prompt_tokens || 0) + (lastUsage.completion_tokens || 0) || lastUsage.total_tokens || 0,
-      promptTokens: lastUsage.prompt_tokens || lastUsage.input_tokens || 0,
-      completionTokens: lastUsage.completion_tokens || lastUsage.output_tokens || 0,
-    } : null,
+    text: result.text,
+    usage: result.usage || null,
   };
 }
 

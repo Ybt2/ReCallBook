@@ -111,6 +111,7 @@
     "selectAll": "Select all",
     "selectFile": "Select {name}",
     "openImage": "Open Image",
+    "openText": "Open Text",
     "openPDF": "Open PDF",
     "delete": "Delete",
     "deleteFile": "Delete file",
@@ -252,6 +253,10 @@
   },
   "imageViewer": {
     "unableToLoad": "Unable to load image."
+  },
+  "textViewer": {
+    "loading": "Loading…",
+    "unableToLoad": "Unable to load file."
   },
   "confirmDialog": {
     "confirm": "Confirm",

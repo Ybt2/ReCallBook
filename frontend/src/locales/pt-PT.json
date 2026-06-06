@@ -111,6 +111,7 @@
     "selectAll": "Selecionar tudo",
     "selectFile": "Selecionar {name}",
     "openImage": "Abrir Imagem",
+    "openText": "Abrir Texto",
     "openPDF": "Abrir PDF",
     "delete": "Eliminar",
     "deleteFile": "Eliminar ficheiro",
@@ -252,6 +253,10 @@
   },
   "imageViewer": {
     "unableToLoad": "Não foi possível carregar a imagem."
+  },
+  "textViewer": {
+    "loading": "A carregar…",
+    "unableToLoad": "Não foi possível carregar o ficheiro."
   },
   "confirmDialog": {
     "confirm": "Confirmar",

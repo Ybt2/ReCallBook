@@ -9,7 +9,7 @@ import ConfirmDialog from "../common/ConfirmDialog.vue";
 const { t } = useI18n();
 const store = useNotebookStore();
 const toasts = useToastStore();
-const emit = defineEmits(["open-pdf", "open-image"]);
+const emit = defineEmits(["open-pdf", "open-image", "open-text"]);
 
 const IMAGE_TYPES = ["jpeg", "png", "svg"];
 const TEXT_TYPES = ["md", "txt"];
@@ -137,8 +137,8 @@ async function confirmRemove() {
         />
         <button
           class="flex-1 min-w-0 text-left flex items-center gap-2"
-          @click="isImg(d) ? emit('open-image', d) : emit('open-pdf', d)"
-          :title="isImg(d) ? $t('filesPanel.openImage') : $t('filesPanel.openPDF')"
+          @click="isImg(d) ? emit('open-image', d) : isText(d) ? emit('open-text', d) : emit('open-pdf', d)"
+          :title="isImg(d) ? $t('filesPanel.openImage') : isText(d) ? $t('filesPanel.openText') : $t('filesPanel.openPDF')"
         >
           <span
             v-if="isImg(d)"
