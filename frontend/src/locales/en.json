@@ -30,7 +30,7 @@
     "signInTo": "Sign in to your RecallBook account.",
     "email": "Email",
     "password": "Password",
-    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder": "you\\@example.com",
     "signIn": "Sign in",
     "newToRecallBook": "New to RecallBook?",
     "createAccount": "Create an account"
@@ -43,7 +43,7 @@
     "password": "Password",
     "language": "Language",
     "usernamePlaceholder": "jane",
-    "emailPlaceholder": "you@example.com",
+    "emailPlaceholder": "you\\@example.com",
     "createAccountBtn": "Create account",
     "alreadyHaveAccount": "Already have an account?",
     "signIn": "Sign in"
