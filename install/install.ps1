@@ -145,7 +145,7 @@ Ok "Frontend built"
 # ─── Step 7: Start data containers ─────────────────────────
 Info "Starting data services (MySQL + Qdrant)..."
 Push-Location $ProjectRoot
-docker compose -f docker-compose.data.yml up -d
+docker compose -f docker-compose.yml up -d
 Pop-Location
 
 # Wait for MySQL
@@ -155,7 +155,7 @@ $attempts = 0
 while (-not $mysqlReady -and $attempts -lt 30) {
     Start-Sleep -Seconds 2
     try {
-        docker compose -f (Join-Path $ProjectRoot "docker-compose.data.yml") exec -T mysql mysqladmin ping -h localhost --silent 2>$null | Out-Null
+        docker compose -f (Join-Path $ProjectRoot "docker-compose.yml") exec -T mysql mysqladmin ping -h localhost --silent 2>$null | Out-Null
         $mysqlReady = $true
     } catch {
         $attempts++

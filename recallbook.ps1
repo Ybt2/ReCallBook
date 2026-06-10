@@ -66,7 +66,7 @@ function Get-ServiceStatus {
 function Start-Data {
     Info "Starting data services..."
     Push-Location $ProjectRoot
-    docker compose -f docker-compose.data.yml up -d
+    docker compose -f docker-compose.yml up -d
     Pop-Location
 
     Info "Waiting for MySQL..."
@@ -75,7 +75,7 @@ function Start-Data {
     while (-not $mysqlReady -and $attempts -lt 30) {
         Start-Sleep -Seconds 2
         try {
-            docker compose -f (Join-Path $ProjectRoot "docker-compose.data.yml") exec -T mysql mysqladmin ping -h localhost --silent 2>$null | Out-Null
+            docker compose -f (Join-Path $ProjectRoot "docker-compose.yml") exec -T mysql mysqladmin ping -h localhost --silent 2>$null | Out-Null
             $mysqlReady = $true
         } catch { $attempts++ }
     }
@@ -98,7 +98,7 @@ function Start-Data {
 function Stop-Data {
     Info "Stopping data services..."
     Push-Location $ProjectRoot
-    docker compose -f docker-compose.data.yml down
+    docker compose -f docker-compose.yml down
     Pop-Location
     Ok "Data services stopped"
 }
@@ -239,7 +239,7 @@ function Show-Status {
 
     # MySQL check via docker
     try {
-        $dockerPs = docker compose -f (Join-Path $ProjectRoot "docker-compose.data.yml") ps mysql --format json 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue
+        $dockerPs = docker compose -f (Join-Path $ProjectRoot "docker-compose.yml") ps mysql --format json 2>$null | ConvertFrom-Json -ErrorAction SilentlyContinue
         if ($dockerPs.State -eq "running") { $mysqlStatus = "running" } else { $mysqlStatus = "stopped" }
     } catch { $mysqlStatus = "stopped" }
 

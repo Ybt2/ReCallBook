@@ -229,7 +229,7 @@ cp .env.example .env
 # Edit .env with your settings
 
 # 3. Start data services (MySQL + Qdrant)
-docker compose -f docker-compose.data.yml up -d
+docker compose -f docker-compose.yml up -d
 
 # 4. Start the app
 cd app && npm start
@@ -298,7 +298,7 @@ All configuration is done via the `.env` file in the project root. Copy `.env.ex
 ReCallBook/
 ├── .env                    # Local environment configuration
 ├── .env.example            # Configuration template with documentation
-├── docker-compose.data.yml # MySQL 8.0 + Qdrant containers
+├── docker-compose.yml # MySQL 8.0 + Qdrant containers
 ├── recallbook.sh           # Linux/macOS service control script
 ├── recallbook.ps1          # Windows service control script
 ├── app/                    # Backend (Node.js / Express 5)
@@ -569,10 +569,10 @@ ReCallBook uses Docker **only for data services** — the app itself runs native
 
 ```bash
 # Start data services (MySQL + Qdrant)
-docker compose -f docker-compose.data.yml up -d
+docker compose -f docker-compose.yml up -d
 
 # Stop data services
-docker compose -f docker-compose.data.yml down
+docker compose -f docker-compose.yml down
 ```
 
 **Why not run the app in Docker?**

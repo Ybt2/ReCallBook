@@ -146,11 +146,11 @@ ok "Frontend built"
 # ─── Step 7: Start data containers ─────────────────────────
 info "Starting data services (MySQL + Qdrant)..."
 cd "${PROJECT_ROOT}"
-docker compose -f docker-compose.data.yml up -d
+docker compose -f docker-compose.yml up -d
 
 # Wait for MySQL
 info "Waiting for MySQL to be ready..."
-until docker compose -f docker-compose.data.yml exec -T mysql mysqladmin ping -h localhost --silent 2>/dev/null; do
+until docker compose -f docker-compose.yml exec -T mysql mysqladmin ping -h localhost --silent 2>/dev/null; do
   sleep 2
 done
 ok "MySQL is ready"

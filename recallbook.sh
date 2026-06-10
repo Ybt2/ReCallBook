@@ -58,12 +58,12 @@ get_service_status() {
 start_data() {
   info "Starting data services..."
   cd "$PROJECT_ROOT"
-  docker compose -f docker-compose.data.yml up -d
+  docker compose -f docker-compose.yml up -d
 
   info "Waiting for MySQL..."
   local attempts=0
   while [ $attempts -lt 30 ]; do
-    if docker compose -f docker-compose.data.yml exec -T mysql mysqladmin ping -h localhost --silent 2>/dev/null; then
+    if docker compose -f docker-compose.yml exec -T mysql mysqladmin ping -h localhost --silent 2>/dev/null; then
       ok "MySQL ready"
       break
     fi
@@ -93,7 +93,7 @@ start_data() {
 stop_data() {
   info "Stopping data services..."
   cd "$PROJECT_ROOT"
-  docker compose -f docker-compose.data.yml down
+  docker compose -f docker-compose.yml down
   ok "Data services stopped"
 }
 
@@ -174,7 +174,7 @@ cmd_status() {
   echo ""
   echo -e "${CYAN}┌─ ReCallBook Status ─────────────────────────┐${NC}"
 
-  local mysql_status=$(get_service_status "MySQL" "docker compose -f ${PROJECT_ROOT}/docker-compose.data.yml ps mysql | grep -q healthy")
+  local mysql_status=$(get_service_status "MySQL" "docker compose -f ${PROJECT_ROOT}/docker-compose.yml ps mysql | grep -q healthy")
   local qdrant_status=$(get_service_status "Qdrant" "curl -s http://localhost:6333/healthz")
   local ollama_status=$(get_service_status "Ollama" "curl -s http://localhost:11434/api/tags")
   local app_status=$(get_service_status "App" "curl -s http://localhost:3000/api/health")
