@@ -15,8 +15,8 @@
   <a href="#features">Features</a> •
   <a href="#architecture">Architecture</a> •
   <a href="#tech-stack">Tech Stack</a> •
-  <a href="#system-requirements">Requirements</a> •
-  <a href="#quick-start">Quick Start</a> •
+  <a href="#prerequisites">Prerequisites</a> •
+  <a href="#installation">Installation</a> •
   <a href="#configuration">Configuration</a> •
   <a href="#how-the-rag-pipeline-works">How It Works</a> •
   <a href="#development">Development</a>
@@ -117,34 +117,40 @@ Created by **Frederico Ferreira Gouveia** as part of his Prova de Aptidão Profi
 
 ---
 
-## System Requirements
+## Prerequisites
 
-### Minimum
+### System Prerequisites
 
-| Component | Specification |
-|-----------|--------------|
-| **CPU** | 4 cores |
-| **RAM** | 8 GB |
-| **Storage** | 10 GB free |
-| **GPU** | None required (CPU-only inference works) |
-| **OS** | Linux, macOS, or Windows (via WSL2) |
-| **Software** | Docker, Node.js 22+, Ollama, Git |
+| Software | Required Version | Description |
+|----------|-----------------|-------------|
+| **Git** | 2.47.1+ | Utilizado para clonar o repositório do projeto |
+| **cURL** | 8.19.0+ | Utilizado pelo script de instalação para verificar a saúde do Qdrant e da API do Ollama |
+| **Docker** | 29.1.2+ | Pilar da arquitetura do ReCallBook. Executa os contentores do MySQL e do Qdrant |
+| **Node.js** | 24.14.0 | A aplicação é construída em Node.js, tanto no backend como no frontend |
 
-With the minimum setup you can run small models (e.g., `llama3.2:3b`).
-Expect slower response times — especially on PDF parsing and AI inference.
+### Hardware Requirements
 
-### Recommended
+#### Minimum
 
 | Component | Specification |
 |-----------|--------------|
-| **CPU** | 6+ cores |
-| **RAM** | 16+ GB |
-| **Storage** | 20+ GB SSD |
-| **GPU** | NVIDIA GPU with 6+ GB VRAM (for faster LLM inference) |
-| **OS** | Linux (Ubuntu 22.04+), macOS, or Windows (via WSL2) |
-| **Software** | Docker, Node.js 22+, Ollama, Git, NVIDIA Container Toolkit (if using GPU) |
+| **Processador** | Qualquer processador 64 bits moderno |
+| **RAM** | 8 GB DDR4 |
+| **Armazenamento** | 10 GB Livres |
+| **GPU** | Não necessário |
 
-With the recommended setup you can run larger models (7B–14B parameters) and get near-instant responses.
+Com a configuração mínima consegues executar modelos pequenos, como o `qwen3.5:0.8b` ou o `llama3.2:3b`.
+
+#### Recommended
+
+| Component | Specification |
+|-----------|--------------|
+| **Processador** | 8+ núcleos a 3.5 GHz |
+| **RAM** | 16 GB DDR4 |
+| **Armazenamento** | 20 GB Livres |
+| **GPU** | GPU com 12+ GB VRAM |
+
+Para uma melhor perceção de quais modelos cada máquina consegue rodar, recomenda-se o uso de ferramentas como [llmfit](https://llmfit.com).
 
 ---
 
@@ -182,89 +188,49 @@ With the recommended setup you can run larger models (7B–14B parameters) and g
 
 ---
 
-## Quick Start
+## Installation
 
-### Prerequisites
-
-- [Git](https://git-scm.com/)
-- [Docker](https://docs.docker.com/get-docker/)
-- [Node.js 22+](https://nodejs.org/)
-- [Ollama](https://ollama.com/)
-
-### Automatic Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/ReCallBook.git
-cd ReCallBook
-
-# Run the installer (Linux/macOS)
-chmod +x install/install.sh
-./install/install.sh
-
-# Start everything
-./recallbook.sh start
-```
-
-The installer will:
-1. Check all prerequisites (git, curl, docker, Node.js 22+, Ollama)
-2. Install Ollama if missing
-3. Create data directories
-4. Copy `.env.example` to `.env` (if not present)
-5. Install npm dependencies for both backend and frontend
-6. Build the frontend
-7. Start MySQL and Qdrant via Docker Compose
-8. Pull the configured Ollama models
-
-### Manual Installation
-
-```bash
-# 1. Install dependencies
-cd app && npm install
-cd ../frontend && npm install && npm run build
-cd ..
-
-# 2. Configure environment
-cp .env.example .env
-# Edit .env with your settings
-
-# 3. Start data services (MySQL + Qdrant)
-docker compose -f docker-compose.yml up -d
-
-# 4. Start the app
-cd app && npm start
-```
-
-### Starting & Stopping
-
-```bash
-# Start interactively (Ctrl+C to stop)
-./recallbook.sh start
-
-# Start in background
-./recallbook.sh start --daemon
-
-# Check status of all services
-./recallbook.sh status
-
-# View logs
-./recallbook.sh logs
-
-# Stop everything
-./recallbook.sh stop
-
-# Enable auto-start on boot
-./recallbook.sh service install
-```
+> **Note:** Antes de instalar, certifica-te de que tens uma cópia do projeto (git clone ou download) e que executas os comandos como **administrador** para que seja possível instalar como serviço após a instalação.
 
 ### Windows
 
-Use the PowerShell scripts instead:
+1. Abrir o **PowerShell como administrador**
+2. Navegar até à raiz do projeto
+3. Executar o script de instalação:
 
 ```powershell
 .\install\install.ps1
-.\recallbook.ps1 start
 ```
+
+### Linux / macOS
+
+1. Abrir o **terminal como administrador**
+2. Navegar até à raiz do projeto
+3. Tornar o script executável e executá-lo:
+
+```bash
+chmod +x install/install.sh && ./install/install.sh
+```
+
+### What the Installer Does
+
+O instalador verifica todos os pré-requisitos (git, curl, docker, Node.js, Ollama), instala o Ollama se estiver em falta, cria as diretorias de dados, copia o `.env.example` para `.env` (se não existir), instala as dependências npm do backend e frontend, faz o build do frontend, inicia o MySQL e o Qdrant via Docker Compose e faz o download dos modelos Ollama configurados.
+
+> **Recomendação:** É recomendado criar o ficheiro `.env` a partir do `.env.example` antes de instalar, com as configurações desejadas (modelos, etc.), para que o instalador faça o download automático dos modelos corretos.
+
+### Post-Installation Commands
+
+| Command | Description |
+|---------|-------------|
+| `./recallbook.sh start` | Inicia todos os serviços interativamente (Ctrl+C para parar) |
+| `./recallbook.sh start --daemon` | Inicia todos os serviços em segundo plano |
+| `./recallbook.sh stop` | Para todos os serviços |
+| `./recallbook.sh status` | Exibe o estado do MySQL, Qdrant, Ollama e da aplicação |
+| `./recallbook.sh logs [app|frontend]` | Exibe os logs (padrão: app) |
+| `./recallbook.sh service install` | Ativa a inicialização automática ao ligar a máquina |
+| `./recallbook.sh service uninstall` | Desativa a inicialização automática ao ligar a máquina |
+
+> **Nota para Windows:** substitui `./recallbook.sh` por `.\recallbook.ps1` (ex: `.\recallbook.ps1 start`).
 
 ---
 
@@ -579,48 +545,6 @@ docker compose -f docker-compose.yml down
 - Ollama needs direct GPU access and runs better natively
 - The app interacts with Ollama's local API and HuggingFace model cache
 - Native execution simplifies debugging and resource management
-
----
-
-## FAQ / Troubleshooting
-
-**Q: Which port does the app use?**  
-A: The backend API runs on port `3000` by default. The frontend dev server runs on port `5173`. Both are configurable via `.env`.
-
-**Q: Can I use a GPU with Ollama?**  
-A: Yes. Ollama automatically detects NVIDIA GPUs on Linux. On Windows, use WSL2. The installer checks for GPU support.
-
-**Q: How do I add more documents after setup?**  
-A: Inside the app — open a notebook, go to the Files panel, and click Upload.
-
-**Q: The AI is responding slowly. What can I do?**  
-A: Try a smaller model (e.g., `llama3.2:3b`), ensure you meet the recommended specs, or check if Ollama is using your GPU.
-
-**Q: I forgot the default JWT secret warning.**  
-A: If you see `JWT_SECRET is still set to the default value.` in the logs, change `JWT_SECRET` in your `.env` file immediately. The default secret is insecure.
-
-**Q: The cross-encoder model fails to download.**  
-A: The first startup downloads `jina-reranker-v2-base-multilingual` (~1.5 GB) from HuggingFace. This happens in the background. If it fails, the system retries lazily on the first rerank operation. Check your internet connection and disk space.
-
-**Q: Can I use this without Docker?**  
-A: You could run MySQL and Qdrant natively, but Docker Compose is the recommended and tested approach for the data services.
-
----
-
-## Roadmap
-
-- [x] Core RAG pipeline with streaming
-- [x] PDF, image, and text document support
-- [x] Quiz and flashcard generation
-- [x] Multi-language UI (English/Portuguese)
-- [x] Dark/light theme
-- [x] JWT authentication with ownership control
-- [x] Native installation scripts (all platforms)
-- [ ] Recommended model list (development team)
-- [ ] Language improvements for AI responses
-- [ ] Dark mode refinement
-- [ ] Docker-based all-in-one deployment option
-- [ ] YouTube video transcript support
 
 ---
 
