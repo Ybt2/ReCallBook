@@ -26,94 +26,67 @@
 
 ## Overview
 
-**ReCallBook** is a fully local, privacy-first Retrieval-Augmented Generation (RAG) study platform. Upload your documents (PDFs, images, text files) and let AI analyze them — no data ever leaves your machine.
+O **ReCallBook** é uma plataforma de estudo assistida por Inteligência Artificial baseada em Retrieval-Augmented Generation (RAG), 100% local e focada na privacidade. Carrega os teus documentos (PDFs, imagens, ficheiros de texto) e deixa a IA analisá-los, nenhum dado sai da tua máquina.
 
-Inspired by [NotebookLM](https://notebooklm.google.com), built entirely with open-source tools and designed for students, educators, researchers, and professionals who need to work with sensitive or confidential information.
+Inspirado no [NotebookLM](https://notebooklm.google.com), construído inteiramente com ferramentas open source e desenhado para estudantes, educadores, investigadores e profissionais que precisam de trabalhar com informação sensível ou confidencial.
 
-Created by **Frederico Ferreira Gouveia** as part of his Prova de Aptidão Profissional (PAP) at Curso Técnico de Gestão e Programação de Sistemas Informáticos, 2025/2026.
+Criado por **Frederico Ferreira Gouveia** no âmbito da Prova de Aptidão Profissional (PAP) do Curso Técnico de Gestão e Programação de Sistemas Informáticos, 2025/2026.
 
-### Why the name?
+### Porquê o nome?
 
-| Part | Meaning |
-|------|---------|
-| **Re** | Repetition, revisiting, redoing queries |
-| **Call** | Calling tools, functions, and information |
-| **recall** | Remembering and retrieving information (English) |
-| **Book** | Notebook — the platform's core unit for organizing knowledge |
+| Parte | Significado |
+|-------|------------|
+| **Re** | Repetição, revisitar, refazer perguntas |
+| **Call** | Chamar ferramentas, funções e informação |
+| **recall** | Lembrar e recuperar informação (inglês) |
+| **Book** | Caderno, a unidade central da plataforma para organizar conhecimento |
 
 ---
 
 ## Features
 
-- **Notebooks** — Organize your study materials into named notebooks
-- **Document Upload** — Upload PDFs (with embedded image extraction), JPEG/PNG/SVG images, and text/markdown files (up to 50 MB)
-- **RAG Chat** — Ask questions about your documents. The system retrieves relevant content from your documents and generates answers with cited sources
-- **Streaming Responses** — Real-time SSE streaming with stage indicators (retrieving → building queries → searching → reranking → generating → extracting sources)
-- **Message Editing** — Edit and resend your last message
-- **Quiz Generation** — Automatically generate multiple-choice quizzes (easy/medium/hard) from your documents with score tracking
-- **Flashcard Generation** — Create front/back/hint flashcards from document content
-- **Note Pinning** — Pin AI responses as notes for later review
-- **Vision Model Support** — Analyze images within documents via a separate vision LLM
-- **Multi-Language Interface** — English and Portuguese UI with labels; the AI responds in your chosen language
-- **Dark / Light Theme** — Persistent, terminal-inspired dark mode
-- **Multi-User Authentication** — JWT-based auth with bcrypt password hashing, ownership verification, and rate limiting
+- **Notebooks**, Organiza os teus materiais de estudo em cadernos nomeados
+- **Upload de Documentos**, Carrega PDFs (com extração de imagens incorporadas), JPEG/PNG/SVG e ficheiros de texto/markdown (até 50 MB)
+- **Chat RAG**, Faz perguntas sobre os teus documentos. O sistema recupera o conteúdo relevante e gera respostas com fontes citadas
+- **Streaming de Respostas**, Streaming em tempo real via SSE com indicadores de fase (a recuperar, a construir queries, a pesquisar, a reordenar, a gerar, a extrair fontes)
+- **Edição de Mensagens**, Edita e reenvia a tua última mensagem
+- **Geração de Quizzes**, Gera automaticamente quizzes de escolha múltipla (fácil/médio/difícil) a partir dos documentos com registo de pontuação
+- **Geração de Flashcards**, Cria flashcards (frente/verso/dica) a partir do conteúdo dos documentos
+- **Fixar Notas**, Fixa respostas da IA como notas para revisão posterior
+- **Suporte a Vision Model**, Analisa imagens dentro de documentos através de uma LLM de visão dedicada
+- **Interface Multilíngue**, Interface em Inglês e Português com etiquetas; a IA responde no idioma escolhido
+- **Tema Escuro / Claro**, Modo escuro persistente inspirado em terminais
+- **Autenticação Multi-Utilizador**, Autenticação JWT com hashing de passwords (bcrypt), verificação de propriedade e rate limiting
 
 ---
 
 ## Architecture
 
-```
-┌──────────────┐      ┌──────────────────────────────────────────────────────┐
-│              │      │                   Express 5 API                       │
-│   Vue 3 SPA  │─────▶│                                                      │
-│   (Vite)     │      │  ┌──────────┐  ┌──────────┐  ┌──────────┐           │
-│              │      │  │   Auth   │  │Notebooks │  │Documents │           │
-│  Pinia       │◀────▶│  ├──────────┤  ├──────────┤  ├──────────┤           │
-│  Vue Router  │      │  │   Chat   │  │  Tools   │  │  Ollama  │           │
-│  Tailwind    │      │  │ (Stream) │  │Qz/Flash  │  │ Mgmt     │           │
-│  Radix Vue   │      │  └────┬─────┘  └──────────┘  └──────────┘           │
-└──────────────┘      │       │                                              │
-                      │       ▼                                              │
-                      │  ┌──────────────────┐     ┌──────────────────────┐   │
-                      │  │   Chat Service   │     │  Cross-Encoder       │   │
-                      │  │   (RAG Pipeline) │────▶│  (HuggingFace        │   │
-                      │  │                  │     │   Transformers)      │   │
-                      │  └──┬────┬────┬─────┘     └──────────────────────┘   │
-                      │     │    │    │                                       │
-                      │     ▼    ▼    ▼                                       │
-                      │  ┌────┐ ┌───┐ ┌─────────┐                            │
-                      │  │My  │ │Qd │ │ Ollama  │                            │
-                      │  │SQL │ │rant│ │ (LLM +  │                            │
-                      │  │    │ │    │ │Embed)   │                            │
-                      │  └────┘ └───┘ └─────────┘                            │
-                      └──────────────────────────────────────────────────────┘
-```
-
-**Key flow:**
-1. **Frontend** (Vue 3 SPA) communicates with the **Express 5 API** via REST + SSE streaming
-2. **MySQL** stores user accounts, notebooks, messages, and asset metadata
-3. **Qdrant** (vector database) stores document chunk embeddings for semantic search
-4. **Ollama** serves the LLM (chat) and embedding model locally
-5. **HuggingFace Transformers** runs an in-process cross-encoder reranker for result refinement
+**Fluxo principal:**
+1. O **Frontend** (Vue 3 SPA) comunica com a **Express 5 API** via REST + SSE streaming
+2. A **MySQL** armazena contas de utilizador, notebooks, mensagens e metadados de assets
+3. A **Qdrant** (vector database) armazena os embeddings dos chunks dos documentos para pesquisa semântica
+4. O **Ollama** serve o LLM (chat) e o modelo de embeddings localmente
+5. O **HuggingFace Transformers** executa um cross-encoder reranker em processo para refinamento dos resultados
 
 ---
 
 ## Tech Stack
 
-| Layer | Technology |
+| Camada | Tecnologia |
 |-------|-----------|
-| **Frontend** | [Vue 3](https://vuejs.org/) (Composition API), [Pinia](https://pinia.vuejs.org/) (state), [Vue Router 4](https://router.vuejs.org/), [Tailwind CSS 3](https://tailwindcss.com/), [Radix Vue](https://www.radix-vue.com/), [Lucide Icons](https://lucide.dev/), [Axios](https://axios-http.com/), [Vite 5](https://vitejs.dev/) |
+| **Frontend** | [Vue 3](https://vuejs.org/) (Composition API), [Pinia](https://pinia.vuejs.org/) (estado), [Vue Router 4](https://router.vuejs.org/), [Tailwind CSS 3](https://tailwindcss.com/), [Radix Vue](https://www.radix-vue.com/), [Lucide Icons](https://lucide.dev/), [Axios](https://axios-http.com/), [Vite 5](https://vitejs.dev/) |
 | **Backend** | [Node.js 22+](https://nodejs.org/), [Express 5](https://expressjs.com/), [LangChain.js](https://js.langchain.com/), [Zod](https://zod.dev/) |
-| **Relational Database** | [MySQL 8.0](https://www.mysql.com/) (via Docker) |
-| **Vector Database** | [Qdrant](https://qdrant.tech/) (via Docker) |
-| **LLM Runtime** | [Ollama](https://ollama.com/) (native install) |
-| **Embedding Model** | [bge-m3](https://ollama.com/library/bge-m3) via Ollama |
-| **Reranker** | [jina-reranker-v2-base-multilingual](https://huggingface.co/jinaai/jina-reranker-v2-base-multilingual) (in-process via [HuggingFace Transformers](https://huggingface.co/docs/transformers.js/)) |
-| **Authentication** | JWT ([jsonwebtoken](https://github.com/auth0/node-jsonwebtoken) + [bcryptjs](https://github.com/dcodeIO/bcrypt.js)) |
-| **PDF Processing** | [pdfjs-dist](https://www.npmjs.com/package/pdfjs-dist) + [sharp](https://sharp.pixelplumbing.com/) (image extraction) |
-| **Testing** | [Jest 30](https://jestjs.io/) + [Supertest](https://github.com/ladjs/supertest) |
-| **Containerization** | [Docker Compose](https://docs.docker.com/compose/) (data services only) |
-| **Installation** | Bash / PowerShell scripts with dependency auto-detection |
+| **Base de Dados Relacional** | [MySQL 8.0](https://www.mysql.com/) (via Docker) |
+| **Base de Dados Vetorial** | [Qdrant](https://qdrant.tech/) (via Docker) |
+| **Runtime LLM** | [Ollama](https://ollama.com/) (instalação nativa) |
+| **Modelo de Embeddings** | [bge-m3](https://ollama.com/library/bge-m3) via Ollama |
+| **Reranker** | [jina-reranker-v2-base-multilingual](https://huggingface.co/jinaai/jina-reranker-v2-base-multilingual) (em processo via [HuggingFace Transformers](https://huggingface.co/docs/transformers.js/)) |
+| **Autenticação** | JWT ([jsonwebtoken](https://github.com/auth0/node-jsonwebtoken) + [bcryptjs](https://github.com/dcodeIO/bcrypt.js)) |
+| **Processamento de PDFs** | [pdfjs-dist](https://www.npmjs.com/package/pdfjs-dist) + [sharp](https://sharp.pixelplumbing.com/) (extração de imagens) |
+| **Testes** | [Jest 30](https://jestjs.io/) + [Supertest](https://github.com/ladjs/supertest) |
+| **Contentorização** | [Docker Compose](https://docs.docker.com/compose/) (apenas serviços de dados) |
+| **Instalação** | Scripts Bash / PowerShell com deteção automática de dependências |
 
 ---
 
@@ -156,35 +129,36 @@ Para uma melhor perceção de quais modelos cada máquina consegue rodar, recome
 
 ## Recommended Models
 
-> **Note:** The development team's recommended models will be listed here. Below are general guidelines.
+> **Nota:** Abaixo estão os modelos recomendados para cada função no ReCallBook. O modelo de embeddings (`bge-m3`) é obrigatório; os restantes podem ser alterados nas Configurações.
 
-### Embedding Model (Required)
+### Embedding Model (Obrigatório)
 
-| Model | Purpose |
+| Modelo | Propósito |
 |-------|---------|
-| `bge-m3` (default) | Document and query embeddings for semantic search. **Required.** |
+| `bge-m3` (padrão) | Embeddings de documentos e queries para pesquisa semântica. **Obrigatório.** |
 
 ### Chat / General Models
 
-| Model | Size | RAM Usage | Quality |
-|-------|------|-----------|---------|
-| *(to be filled)* | | | |
-| *(to be filled)* | | | |
-| *(to be filled)* | | | |
-
-### Vision Models (for image analysis)
-
-| Model | Purpose |
+| Modelo | Propósito |
 |-------|---------|
-| *(to be filled)* | Analyzing images inside documents |
+| `gpt-oss:20b` | Máxima qualidade. Requer GPU com 12 GB+ VRAM |
+| `gemma4:12b` | Alternativa sólida com boa compreensão contextual |
+| `llama3:8b` | Modelo principal recomendado. Bom equilíbrio entre qualidade e desempenho |
+| `llama3.2:3b` | Leve, funciona em qualquer hardware. Ideal para CPU-only |
 
-### Query Builder Model (optional)
+### Vision Model (para análise de imagens)
 
-| Model | Purpose |
+| Modelo | Propósito |
 |-------|---------|
-| *(to be filled)* | Expanding user queries for better search results |
+| `qwen3.5:0.8b` | Análise de imagens dentro de documentos (modelo multimodal) |
 
-**Tip:** You can set different models for general chat, query building, and vision in the application's Configuration page.
+### Query Builder Model (opcional)
+
+| Modelo | Propósito |
+|-------|---------|
+| `llama3:8b` ou `gemma4:12b` | Expandir perguntas do utilizador para melhorar a pesquisa semântica |
+
+**Dica:** Podes definir modelos diferentes para Chat, Query Builder e Vision nas Configurações da aplicação.
 
 ---
 
@@ -212,7 +186,7 @@ Para uma melhor perceção de quais modelos cada máquina consegue rodar, recome
 chmod +x install/install.sh && ./install/install.sh
 ```
 
-### What the Installer Does
+### O que faz o instalador?
 
 O instalador verifica todos os pré-requisitos (git, curl, docker, Node.js, Ollama), instala o Ollama se estiver em falta, cria as diretorias de dados, copia o `.env.example` para `.env` (se não existir), instala as dependências npm do backend e frontend, faz o build do frontend, inicia o MySQL e o Qdrant via Docker Compose e faz o download dos modelos Ollama configurados.
 
@@ -226,7 +200,7 @@ O instalador verifica todos os pré-requisitos (git, curl, docker, Node.js, Olla
 | `./recallbook.sh start --daemon` | Inicia todos os serviços em segundo plano |
 | `./recallbook.sh stop` | Para todos os serviços |
 | `./recallbook.sh status` | Exibe o estado do MySQL, Qdrant, Ollama e da aplicação |
-| `./recallbook.sh logs [app|frontend]` | Exibe os logs (padrão: app) |
+| `./recallbook.sh logs [app/frontend]` | Exibe os logs (padrão: app) |
 | `./recallbook.sh service install` | Ativa a inicialização automática ao ligar a máquina |
 | `./recallbook.sh service uninstall` | Desativa a inicialização automática ao ligar a máquina |
 
@@ -236,25 +210,25 @@ O instalador verifica todos os pré-requisitos (git, curl, docker, Node.js, Olla
 
 ## Configuration
 
-All configuration is done via the `.env` file in the project root. Copy `.env.example` to `.env` and adjust:
+Toda a configuração é feita através do ficheiro `.env` na raiz do projeto. Copia o `.env.example` para `.env` e ajusta:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `JWT_SECRET` | `change-me-to-a-random-string` | **Change this.** Secret key for JWT token signing. |
-| `DB_PASSWORD` | `recallbook` | MySQL root password |
-| `DB_NAME` | `recallbook` | MySQL database name |
-| `MYSQL_PORT` | `3306` | MySQL port |
-| `QDRANT_PORT` | `6333` | Qdrant port |
-| `OLLAMA_PORT` | `11434` | Ollama port |
-| `BACKEND_PORT` | `3000` | Express API port |
-| `FRONTEND_PORT` | `9090` | Frontend dev server port (development only) |
-| `OLLAMA_MODELS` | `bge-m3,llama3.2` | Comma-separated models to auto-download |
-| `CORS_ORIGINS` | `http://localhost:9090` | Allowed CORS origins (comma-separated) |
-| `OLLAMA_EMBEDDING_MODEL` | `bge-m3` | Override the embedding model |
-| `JWT_EXPIRES_IN` | `7d` | JWT token expiry duration |
-| `DB_HOST` | `localhost` | MySQL host |
-| `DB_USER` | `root` | MySQL user |
-| `NODE_ENV` | *(empty)* | Set to `production` for stricter CORS |
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `JWT_SECRET` | `change-me-to-a-random-string` | **Altera isto.** Chave secreta para assinar tokens JWT. |
+| `DB_PASSWORD` | `recallbook` | Palavra-passe root da MySQL |
+| `DB_NAME` | `recallbook` | Nome da base de dados MySQL |
+| `MYSQL_PORT` | `3306` | Porta da MySQL |
+| `QDRANT_PORT` | `6333` | Porta da Qdrant |
+| `OLLAMA_PORT` | `11434` | Porta do Ollama |
+| `BACKEND_PORT` | `3000` | Porta da API Express |
+| `FRONTEND_PORT` | `9090` | Porta do servidor de desenvolvimento frontend (apenas desenvolvimento) |
+| `OLLAMA_MODELS` | `bge-m3,llama3.2` | Modelos a descarregar automaticamente (separados por vírgula) |
+| `CORS_ORIGINS` | `http://localhost:9090` | Origens CORS permitidas (separadas por vírgula) |
+| `OLLAMA_EMBEDDING_MODEL` | `bge-m3` | Substitui o modelo de embeddings predefinido |
+| `JWT_EXPIRES_IN` | `7d` | Duração de expiração do token JWT |
+| `DB_HOST` | `localhost` | Host da MySQL |
+| `DB_USER` | `root` | Utilizador da MySQL |
+| `NODE_ENV` | *(vazio)* | Definir para `production` para CORS mais restrito |
 
 ---
 
@@ -264,7 +238,7 @@ All configuration is done via the `.env` file in the project root. Copy `.env.ex
 ReCallBook/
 ├── .env                    # Local environment configuration
 ├── .env.example            # Configuration template with documentation
-├── docker-compose.yml # MySQL 8.0 + Qdrant containers
+├── docker-compose.yml      # MySQL 8.0 + Qdrant containers
 ├── recallbook.sh           # Linux/macOS service control script
 ├── recallbook.ps1          # Windows service control script
 ├── app/                    # Backend (Node.js / Express 5)
@@ -356,97 +330,8 @@ ReCallBook/
 │   └── install.ps1           # Windows
 ├── scripts/
 │   └── pull-models.sh        # Ollama model puller
-└── pap-DB_versão_alpha0.9.drawio.svg  # Database schema diagram
+└── pap-DB_versao_alpha0.9.drawio.svg  # Database schema diagram
 ```
-
----
-
-## How the RAG Pipeline Works
-
-ReCallBook uses a multi-stage **Retrieval-Augmented Generation** pipeline to answer questions based on your documents.
-
-### 1. Document Ingestion
-
-```
-Upload (PDF/Image/Text)
-        │
-        ▼
-  Parse & Extract
-  ├── PDF: text via pdfjs-dist + image extraction via sharp + vision LLM
-  ├── Image: direct vision LLM analysis
-  └── Text: direct UTF-8 parsing
-        │
-        ▼
-  Text Splitting (LangChain RecursiveCharacterTextSplitter)
-  ── Chunks of configurable size with overlap ──
-        │
-        ▼
-  Embedding (bge-m3 via Ollama)
-  ── Each chunk converted to a 1024-dim dense vector ──
-        │
-        ▼
-  Qdrant Vector Store
-  ── Chunks stored with payload (notebook_id, fonte_id, source_text) ──
-```
-
-### 2. Query Processing
-
-```
-User Question
-        │
-        ▼
-  Multi-Query Expansion (optional)
-  ── A dedicated query-builder model generates
-     3 alternative phrasings of the question ──
-        │
-        ▼
-  Embed Queries (bge-m3)
-        │
-        ▼
-  Vector Search (Qdrant)
-  ── Dense similarity search with score threshold ──
-        │
-        ▼
-  Deduplication (by chunk content hash)
-        │
-        ▼
-  Cross-Encoder Reranking
-  ── jina-reranker-v2-base-multilingual (in-process)
-     Re-scores top-N chunks by relevance to the query ──
-        │
-        ▼
-  Context Assembly
-  ── Top-K chunks assembled with source citations ──
-```
-
-### 3. Answer Generation
-
-```
-Assembled Context + Conversation History (last 6 messages)
-        │
-        ▼
-  LLM Generation (Ollama)
-  ── Model generates answer with [n] citations
-     referencing source chunks ──
-        │
-        ▼
-  Source Extraction
-  ── Regex-based extraction of [n] markers
-     → maps to original document + page ──
-        │
-        ▼
-  Streamed Response (SSE)
-  ── Real-time streaming with stage indicators ──
-```
-
-### 4. Tool Generation
-
-**Quizzes** and **Flashcards** are generated via the same RAG pipeline but use **structured LLM output**:
-
-- **Quiz**: Zod schema defines question, 4 options, correct answer, difficulty, and rationale
-- **Flashcard**: Zod schema defines front text, back text, and hint
-
-Both tools create a `Notebook_asset` in MySQL with the full content stored as JSON, allowing review and re-generation.
 
 ---
 
@@ -482,38 +367,38 @@ Both tools create a `Notebook_asset` in MySQL with the full content stored as JS
 
 ## Development
 
-### Running in Development Mode
+### Modo de Desenvolvimento
 
 ```bash
-# Start backend (port 3000)
+# Iniciar backend (porta 3000)
 cd app
 npm run dev
 
-# In another terminal, start frontend dev server (port 5173)
+# Noutro terminal, iniciar frontend dev server (porta 5173)
 cd frontend
 npm run dev
 ```
 
-In development mode:
-- Frontend runs on Vite dev server at `http://localhost:5173` with hot-reload
-- API proxy is configured to forward `/api` requests to `http://localhost:3000`
-- CORS allows requests without an `Origin` header
+Em modo de desenvolvimento:
+- O frontend corre no Vite dev server em `http://localhost:5173` com hot-reload
+- O proxy da API esta configurado para encaminhar pedidos `/api` para `http://localhost:3000`
+- O CORS permite pedidos sem cabecalho `Origin`
 
-### Running Tests
+### Executar Testes
 
 ```bash
 cd app
 npm test
 ```
 
-The test suite covers:
+A suite de testes cobre:
 - Health check endpoint
-- Authentication (register, login, JWT validation)
-- Notebook CRUD with ownership (IDOR) protection
-- Error handling (AppError, file size, JSON parse, 500)
-- Rate limiting configuration
+- Autenticacao (registo, login, validacao JWT)
+- CRUD de notebooks com protecao de ownership (IDOR)
+- Error handling (AppError, tamanho de ficheiro, JSON parse, 500)
+- Configuracao de rate limiting
 - Cross-encoder reranker
-- Validation utilities (sanitization, filter building)
+- Utilitarios de validacao (sanitizacao, construcao de filtros)
 
 ### Production Build
 
@@ -522,33 +407,28 @@ cd frontend
 npm run build
 ```
 
-In production (`NODE_ENV=production`):
-- Express serves the built frontend from `frontend/dist/`
-- CORS requires a valid `Origin` header
-- Frontend is served for all routes not matching `/api`
+Em producao (`NODE_ENV=production`):
+- O Express serve o frontend compilado de `frontend/dist/`
+- O CORS requer um cabecalho `Origin` valido
+- O frontend e servido para todas as rotas que nao correspondam a `/api`
 
 ---
 
 ## Docker / Deployment
 
-ReCallBook uses Docker **only for data services** — the app itself runs natively.
+O ReCallBook usa Docker **apenas para os servicos de dados** — a aplicacao corre nativamente.
 
 ```bash
-# Start data services (MySQL + Qdrant)
+# Iniciar servicos de dados (MySQL + Qdrant)
 docker compose -f docker-compose.yml up -d
 
-# Stop data services
+# Parar servicos de dados
 docker compose -f docker-compose.yml down
 ```
-
-**Why not run the app in Docker?**
-- Ollama needs direct GPU access and runs better natively
-- The app interacts with Ollama's local API and HuggingFace model cache
-- Native execution simplifies debugging and resource management
 
 ---
 
 <p align="center">
-  <sub>Built with ❤️ by <strong>Frederico Ferreira Gouveia</strong></sub><br />
-  <sub>Curso Técnico de Gestão e Programação de Sistemas Informáticos — PAP 2025/2026</sub>
+  <sub>Feito com ❤️ por <strong>Frederico Ferreira Gouveia</strong></sub><br />
+  <sub>Curso Tecnico de Gestao e Programacao de Sistemas Informaticos — PAP 2025/2026</sub>
 </p>
