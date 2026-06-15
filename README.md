@@ -1,7 +1,8 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="" />
-    <img alt="ReCallBook" src="" width="120" />
+    <source media="(prefers-color-scheme: dark)" srcset="assets/logo_white.png" />
+    <source media="(prefers-color-scheme: light)" srcset="assets/logo_black.png" />
+    <img alt="ReCallBook" src="assets/logo_black.png" width="120" />
   </picture>
 </p>
 
